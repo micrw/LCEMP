@@ -18,9 +18,11 @@ public:
 	static const int KEY_RIGHT = 'D';
 	static const int KEY_JUMP = VK_SPACE;
 	static const int KEY_SNEAK = VK_LSHIFT;
+	static const int KEY_SPRINT = VK_LCONTROL;
 	static const int KEY_INVENTORY = 'E';
 	static const int KEY_DROP = 'Q';
 	static const int KEY_CRAFTING = VK_TAB;
+	static const int KEY_CRAFTING_ALT = 'R';
 	static const int KEY_PAUSE = VK_ESCAPE;
 	static const int KEY_THIRD_PERSON = VK_F5;
 	static const int KEY_DEBUG_INFO = VK_F3;

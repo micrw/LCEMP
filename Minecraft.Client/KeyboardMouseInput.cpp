@@ -6,6 +6,9 @@ KeyboardMouseInput g_KBMInput;
 
 extern HWND g_hWnd;
 
+// Forward declaration
+static void ClipCursorToWindow(HWND hWnd);
+
 // coded by notpies fr
 void KeyboardMouseInput::Init()
 {
@@ -40,10 +43,6 @@ void KeyboardMouseInput::Init()
 	rid.hwndTarget = g_hWnd;
 	RegisterRawInputDevices(&rid, 1, sizeof(rid));
 
-	if (g_hWnd)
-	{
-		while (ShowCursor(FALSE) >= 0) {}
-	}
 }
 
 void KeyboardMouseInput::ClearAllState()
@@ -226,6 +225,9 @@ void KeyboardMouseInput::SetMouseGrabbed(bool grabbed)
 	m_mouseGrabbed = grabbed;
 	if (grabbed && g_hWnd)
 	{
+		while (ShowCursor(FALSE) >= 0) {}
+		ClipCursorToWindow(g_hWnd);
+		
 		RECT rc;
 		GetClientRect(g_hWnd, &rc);
 		POINT center;
@@ -236,6 +238,11 @@ void KeyboardMouseInput::SetMouseGrabbed(bool grabbed)
 
 		m_mouseDeltaAccumX = 0;
 		m_mouseDeltaAccumY = 0;
+	}
+	else if (!grabbed && g_hWnd)
+	{
+		while (ShowCursor(TRUE) < 0) {}
+		ClipCursor(NULL);
 	}
 }
 
@@ -257,8 +264,16 @@ void KeyboardMouseInput::SetWindowFocused(bool focused)
 	m_windowFocused = focused;
 	if (focused)
 	{
-		while (ShowCursor(FALSE) >= 0) {}
-		ClipCursorToWindow(g_hWnd);
+		if (m_mouseGrabbed)
+		{
+			while (ShowCursor(FALSE) >= 0) {}
+			ClipCursorToWindow(g_hWnd);
+		}
+		else
+		{
+			while (ShowCursor(TRUE) < 0) {}
+			ClipCursor(NULL);
+		}
 	}
 	else
 	{
