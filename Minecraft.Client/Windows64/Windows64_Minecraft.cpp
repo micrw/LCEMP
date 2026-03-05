@@ -807,6 +807,32 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 			nameBuf[n] = 0;
 			strncpy_s(g_Win64Username, 17, nameBuf, _TRUNCATE);
 		}
+
+		char *ipArg = strstr(cmdLineA, "-ip ");
+		if (ipArg)
+		{
+			ipArg += 4;
+			while (*ipArg == ' ') ipArg++;
+			char ipBuf[256];
+			int n = 0;
+			while (ipArg[n] && ipArg[n] != ' ' && n < 255) { ipBuf[n] = ipArg[n]; n++; }
+			ipBuf[n] = 0;
+			strncpy_s(g_Win64MultiplayerIP, 256, ipBuf, _TRUNCATE);
+			g_Win64MultiplayerJoin = true;
+		}
+
+		char *portArg = strstr(cmdLineA, "-port ");
+		if (portArg)
+		{
+			portArg += 6;
+			while (*portArg == ' ') portArg++;
+			char portBuf[16];
+			int n = 0;
+			while (portArg[n] && portArg[n] != ' ' && n < 15) { portBuf[n] = portArg[n]; n++; }
+			portBuf[n] = 0;
+			g_Win64MultiplayerPort = atoi(portBuf);
+			if (g_Win64MultiplayerPort <= 0) g_Win64MultiplayerPort = WIN64_NET_DEFAULT_PORT;
+		}
 	}
 
 	if (g_Win64Username[0] == 0)

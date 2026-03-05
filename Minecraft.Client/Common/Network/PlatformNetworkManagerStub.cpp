@@ -705,6 +705,33 @@ void CPlatformNetworkManagerStub::SearchForGames()
 #ifdef _WINDOWS64
 	std::vector<Win64LANSession> lanSessions = WinsockNetLayer::GetDiscoveredSessions();
 
+	if (g_Win64MultiplayerJoin)
+	{
+		bool alreadyPresent = false;
+		for (size_t i = 0; i < lanSessions.size(); i++)
+		{
+			if (strcmp(lanSessions[i].hostIP, g_Win64MultiplayerIP) == 0 &&
+				lanSessions[i].hostPort == g_Win64MultiplayerPort)
+			{
+				alreadyPresent = true;
+				break;
+			}
+		}
+		if (!alreadyPresent)
+		{
+			Win64LANSession manual;
+			memset(&manual, 0, sizeof(manual));
+			strncpy_s(manual.hostIP, sizeof(manual.hostIP), g_Win64MultiplayerIP, _TRUNCATE);
+			manual.hostPort = g_Win64MultiplayerPort;
+			swprintf_s(manual.hostName, 32, L"%hs:%d", g_Win64MultiplayerIP, g_Win64MultiplayerPort);
+			manual.playerCount = 0;
+			manual.maxPlayers = MINECRAFT_NET_MAX_PLAYERS;
+			manual.isJoinable = true;
+			manual.lastSeenTick = GetTickCount();
+			lanSessions.push_back(manual);
+		}
+	}
+
 	for (size_t i = 0; i < friendsSessions[0].size(); i++)
 		delete friendsSessions[0][i];
 	friendsSessions[0].clear();
