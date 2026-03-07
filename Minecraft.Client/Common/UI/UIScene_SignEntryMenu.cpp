@@ -46,6 +46,7 @@ UIScene_SignEntryMenu::UIScene_SignEntryMenu(int iPad, void *_initData, UILayer 
 		m_signRows[i].SetTitleAndText(IDS_SIGN_TITLE,IDS_SIGN_TITLE_TEXT);
 #endif
 		m_textInputLines[i].init(m_sign->GetMessage(i).c_str(), i);
+		m_textInputLines[i].SetCharLimit(15);
 	}
 
 	parentLayer->addComponent(iPad,eUIComponent_MenuBackground);
@@ -150,6 +151,7 @@ int UIScene_SignEntryMenu::KeyboardCompleteCallback(LPVOID lpParam,bool bRes)
 		uint16_t pchText[128];
 		ZeroMemory(pchText, 128 * sizeof(uint16_t) );
 		InputManager.GetText(pchText);
+		pchText[15] = 0;
 		pClass->m_textInputLines[pClass->m_iEditingLine].setLabel((wchar_t *)pchText);
 	}
 	return 0;
