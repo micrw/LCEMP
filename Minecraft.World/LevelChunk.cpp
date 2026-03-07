@@ -1174,7 +1174,6 @@ void LevelChunk::addEntity(shared_ptr<Entity> e)
     int zc = Mth::floor(e->z / 16);
     if (xc != this->x || zc != this->z)
 	{
-		app.DebugPrintf("Wrong location!");
 //        System.out.println("Wrong location! " + e);
 //        Thread.dumpStack();
     }

@@ -12,7 +12,7 @@
 #define WIN64_NET_DEFAULT_PORT 25565
 #define WIN64_NET_MAX_CLIENTS 7
 #define WIN64_NET_RECV_BUFFER_SIZE 65536
-#define WIN64_NET_MAX_PACKET_SIZE (4 * 1024 * 1024)
+#define WIN64_NET_MAX_PACKET_SIZE (3 * 1024 * 1024)
 #define WIN64_LAN_DISCOVERY_PORT 25566
 #define WIN64_LAN_BROADCAST_MAGIC 0x4D434C4E
 
@@ -57,6 +57,7 @@ struct Win64RemoteConnection
 	BYTE smallId;
 	HANDLE recvThread;
 	volatile bool active;
+	CRITICAL_SECTION sendLock;
 };
 
 class WinsockNetLayer
@@ -85,6 +86,10 @@ public:
 	static bool PopDisconnectedSmallId(BYTE *outSmallId);
 	static void PushFreeSmallId(BYTE smallId);
 	static void CloseConnectionBySmallId(BYTE smallId);
+
+	static bool PopPendingJoinSmallId(BYTE *outSmallId);
+
+	static bool IsSmallIdConnected(BYTE smallId);
 
 	static bool StartAdvertising(int gamePort, const wchar_t *hostName, unsigned int gameSettings, unsigned int texPackId, unsigned char subTexId, unsigned short netVer);
 	static void StopAdvertising();
@@ -122,7 +127,7 @@ private:
 	static CRITICAL_SECTION s_sendLock;
 	static CRITICAL_SECTION s_connectionsLock;
 
-	static std::vector<Win64RemoteConnection> s_connections;
+	static Win64RemoteConnection s_connections[WIN64_NET_MAX_CLIENTS + 1];
 
 	static SOCKET s_advertiseSock;
 	static HANDLE s_advertiseThread;
@@ -139,6 +144,9 @@ private:
 
 	static CRITICAL_SECTION s_disconnectLock;
 	static std::vector<BYTE> s_disconnectedSmallIds;
+
+	static CRITICAL_SECTION s_pendingJoinLock;
+	static std::vector<BYTE> s_pendingJoinSmallIds;
 
 	static CRITICAL_SECTION s_freeSmallIdLock;
 	static std::vector<BYTE> s_freeSmallIds;

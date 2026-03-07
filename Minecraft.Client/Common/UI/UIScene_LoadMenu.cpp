@@ -1341,7 +1341,12 @@ int UIScene_LoadMenu::LoadDataComplete(void *pParam)
 #endif
 			else
 			{
+#ifdef _WINDOWS64
+				DWORD dwLocalUsersMask = CGameNetworkManager::GetLocalPlayerMask(ProfileManager.GetPrimaryPad());
+				StartGameFromSave(pClass, dwLocalUsersMask);
+#else
 				pClass->m_bRequestQuadrantSignin = true;
+#endif
 			}
 		}
 	}

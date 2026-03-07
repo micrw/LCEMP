@@ -433,6 +433,29 @@ bool DirectoryLevelStorage::load(shared_ptr<Player> player)
 {
 	bool newPlayer = true;
 	CompoundTag *tag = loadPlayerDataTag( player->getXuid() );
+
+#ifdef _WINDOWS64
+	if (tag == NULL)
+	{
+		const PlayerUID WIN64_XUID_BASE = (PlayerUID)0xe000d45248242f2e;
+		for (int i = 0; i < MINECRAFT_NET_MAX_PLAYERS; i++)
+		{
+			PlayerUID oldXuid = WIN64_XUID_BASE + i;
+			tag = loadPlayerDataTag(oldXuid);
+			if (tag != NULL)
+			{
+				ConsoleSavePath oldFile = ConsoleSavePath(playerDir.getName() + _toString(oldXuid) + L".dat");
+				if (m_saveFile->doesFileExist(oldFile))
+				{
+					m_saveFile->deleteFile(m_saveFile->createFile(oldFile));
+				}
+				app.DebugPrintf("Migrated player data from old XUID %llu to new XUID %llu\n", oldXuid, player->getXuid());
+				break;
+			}
+		}
+	}
+#endif
+
 	if (tag != NULL)
 	{
 		newPlayer = false;

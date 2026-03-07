@@ -138,6 +138,11 @@ void Socket::pushDataToQueue(const BYTE * pbData, DWORD dwDataSize, bool fromHos
 	}
 
 	EnterCriticalSection(&m_queueLockNetwork[queueIdx]);
+	if(m_queueNetwork[queueIdx].size() + dwDataSize > 2 * 1024 * 1024)
+	{
+		LeaveCriticalSection(&m_queueLockNetwork[queueIdx]);
+		return;
+	}
 	for( unsigned int i = 0; i < dwDataSize; i++ )
 	{
 		m_queueNetwork[queueIdx].push(*pbData++);

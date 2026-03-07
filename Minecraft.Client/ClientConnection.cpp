@@ -753,6 +753,7 @@ void ClientConnection::handleAddPlayer(shared_ptr<AddPlayerPacket> packet)
 	player->yRotp = packet->yRot;
 	player->yHeadRot = packet->yHeadRot * 360 / 256.0f;
 	player->setXuid(packet->xuid);
+	player->setOnlineXuid(packet->OnlineXuid);
 
 #ifdef _DURANGO
 	// On Durango request player display name from network manager
@@ -765,11 +766,11 @@ void ClientConnection::handleAddPlayer(shared_ptr<AddPlayerPacket> packet)
 
 #ifdef _WINDOWS64
 	{
-		PlayerUID pktXuid = player->getXuid();
+		PlayerUID netXuid = packet->OnlineXuid;
 		const PlayerUID WIN64_XUID_BASE = (PlayerUID)0xe000d45248242f2e;
-		if (pktXuid >= WIN64_XUID_BASE && pktXuid < WIN64_XUID_BASE + MINECRAFT_NET_MAX_PLAYERS)
+		if (netXuid >= WIN64_XUID_BASE && netXuid < WIN64_XUID_BASE + MINECRAFT_NET_MAX_PLAYERS)
 		{
-			BYTE smallId = (BYTE)(pktXuid - WIN64_XUID_BASE);
+			BYTE smallId = (BYTE)(netXuid - WIN64_XUID_BASE);
 			INetworkPlayer *np = g_NetworkManager.GetPlayerBySmallId(smallId);
 			if (np != NULL)
 			{
@@ -923,39 +924,6 @@ void ClientConnection::handleMoveEntitySmall(shared_ptr<MoveEntityPacketSmall> p
 
 void ClientConnection::handleRemoveEntity(shared_ptr<RemoveEntitiesPacket> packet)
 {
-#ifdef _WINDOWS64
-	if (!g_NetworkManager.IsHost())
-	{
-		for (int i = 0; i < packet->ids.length; i++)
-		{
-			shared_ptr<Entity> entity = getEntity(packet->ids[i]);
-			if (entity != NULL && entity->GetType() == eTYPE_PLAYER)
-			{
-				shared_ptr<Player> player = dynamic_pointer_cast<Player>(entity);
-				if (player != NULL)
-				{
-					PlayerUID xuid = player->getXuid();
-					INetworkPlayer *np = g_NetworkManager.GetPlayerByXuid(xuid);
-					if (np != NULL)
-					{
-						NetworkPlayerXbox *npx = (NetworkPlayerXbox *)np;
-						IQNetPlayer *qp = npx->GetQNetPlayer();
-						if (qp != NULL)
-						{
-							extern CPlatformNetworkManagerStub *g_pPlatformNetworkManager;
-							g_pPlatformNetworkManager->NotifyPlayerLeaving(qp);
-							qp->m_smallId = 0;
-							qp->m_isRemote = false;
-							qp->m_isHostPlayer = false;
-							qp->m_gamertag[0] = 0;
-							qp->SetCustomDataValue(0);
-						}
-					}
-				}
-			}
-		}
-	}
-#endif
 	for (int i = 0; i < packet->ids.length; i++)
 	{
 		level->removeEntity(packet->ids[i]);
@@ -1036,7 +1004,7 @@ void ClientConnection::handleChunkVisibility(shared_ptr<ChunkVisibilityPacket> p
 
 void ClientConnection::handleChunkTilesUpdate(shared_ptr<ChunkTilesUpdatePacket> packet)
 {
-	// 4J - changed to encode level in packet
+	if (packet->levelIdx >= minecraft->levels.length) return;
 	MultiPlayerLevel *dimensionLevel = (MultiPlayerLevel *)minecraft->levels[packet->levelIdx];
 	if( dimensionLevel )
 	{
@@ -1105,7 +1073,7 @@ void ClientConnection::handleChunkTilesUpdate(shared_ptr<ChunkTilesUpdatePacket>
 
 void ClientConnection::handleBlockRegionUpdate(shared_ptr<BlockRegionUpdatePacket> packet)
 {
-	// 4J - changed to encode level in packet
+	if (packet->levelIdx >= minecraft->levels.length) return;
 	MultiPlayerLevel *dimensionLevel = (MultiPlayerLevel *)minecraft->levels[packet->levelIdx];
 	if( dimensionLevel )
 	{
@@ -1149,7 +1117,7 @@ void ClientConnection::handleTileUpdate(shared_ptr<TileUpdatePacket> packet)
 		packet->block = 0;
 		destroyTilePacket = true;
 	}
-	// 4J - changed to encode level in packet
+	if (packet->levelIdx >= minecraft->levels.length) return;
 	MultiPlayerLevel *dimensionLevel = (MultiPlayerLevel *)minecraft->levels[packet->levelIdx];
 	if( dimensionLevel )
 	{
@@ -2162,6 +2130,7 @@ void ClientConnection::handleAddMob(shared_ptr<AddMobPacket> packet)
 	float xRot = packet->xRot * 360 / 256.0f;
 
 	shared_ptr<Mob> mob = dynamic_pointer_cast<Mob>(EntityIO::newById(packet->type, level));
+	if (mob == nullptr) return;
 	mob->xp = packet->x;
 	mob->yp = packet->y;
 	mob->zp = packet->z;
@@ -3235,10 +3204,11 @@ void ClientConnection::handleCustomPayload(shared_ptr<CustomPayloadPacket> custo
 			}
 #else
 			UIScene *scene = ui.GetTopScene(m_userIndex, eUILayer_Scene);
-			UIScene_TradingMenu *screen = (UIScene_TradingMenu *)scene;
-			trader = screen->getMerchant();
+			UIScene_TradingMenu *screen = dynamic_cast<UIScene_TradingMenu *>(scene);
+			if (screen != nullptr)
+				trader = screen->getMerchant();
 #endif
-			
+			if (trader == nullptr) return;
 			MerchantRecipeList *recipeList = MerchantRecipeList::createFromStream(&input);
 			trader->overrideOffers(recipeList);
 		}

@@ -28,11 +28,13 @@ public:
 	{
         type = dis->readByte();
         int size = dis->readInt();
+        if (size < 0 || size > 10000) size = 0;
 
         list.clear();
         for (int i = 0; i < size; i++)
 		{
             Tag *tag = Tag::newTag(type, L"");
+            if (tag == NULL) break;
             tag->load(dis);
             list.push_back(tag);
         }

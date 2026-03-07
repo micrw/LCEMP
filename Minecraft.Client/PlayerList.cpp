@@ -479,9 +479,12 @@ shared_ptr<ServerPlayer> PlayerList::getPlayerForLogin(PendingConnection *pendin
 		INetworkPlayer *np = pendingConnection->connection->getSocket()->getPlayer();
 		if (np != NULL)
 		{
-			PlayerUID realXuid = np->GetUID();
-			player->setXuid(realXuid);
-			player->setOnlineXuid(realXuid);
+
+			PlayerUID persistXuid = Win64_UsernameToXuid(userName.c_str());
+			player->setXuid(persistXuid);
+			// network player identification, not used for saves
+			PlayerUID networkXuid = np->GetUID();
+			player->setOnlineXuid(networkXuid);
 		}
 	}
 #endif

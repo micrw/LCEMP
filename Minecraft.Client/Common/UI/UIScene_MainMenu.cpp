@@ -351,6 +351,10 @@ void UIScene_MainMenu::handlePress(F64 controlId, F64 childId)
 			ui.NavigateToScene(primaryPad,eUIScene_TrialExitUpsell);
 		}
 		break;
+#elif defined _WINDOWS64
+	case eControl_Exit:
+		app.ExitGame();
+		break;
 #endif
 
 #ifdef _DURANGO

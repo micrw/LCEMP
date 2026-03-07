@@ -233,6 +233,8 @@ private:
 };
 
 void Win64_SetupRemoteQNetPlayer(IQNetPlayer *player, BYTE smallId, bool isHost, bool isLocal);
+PlayerUID Win64_UsernameToXuid(const char* username);
+PlayerUID Win64_UsernameToXuid(const wchar_t* username);
 
 const int QNET_GETSENDQUEUESIZE_SECONDARY_TYPE = 0;
 const int QNET_GETSENDQUEUESIZE_MESSAGES = 0;

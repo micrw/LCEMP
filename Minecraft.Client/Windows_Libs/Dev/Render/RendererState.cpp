@@ -528,10 +528,10 @@ void Renderer::StateSetViewport(C4JRender::eViewportType viewportType)
     case C4JRender::VIEWPORT_TYPE_FULLSCREEN:
         break;
     case C4JRender::VIEWPORT_TYPE_SPLIT_TOP:
-        y = fullHeight * 0.5f;
         height = fullHeight * 0.5f;
         break;
     case C4JRender::VIEWPORT_TYPE_SPLIT_BOTTOM:
+        y = fullHeight * 0.5f;
         height = fullHeight * 0.5f;
         break;
     case C4JRender::VIEWPORT_TYPE_SPLIT_LEFT:

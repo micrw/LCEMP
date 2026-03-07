@@ -56,6 +56,8 @@ void ExplodePacket::read(DataInputStream *dis) //throws IOException
 		r = dis->readFloat();
 		int count = dis->readInt();
 
+		if(count < 0 || count > 32768) count = 0;
+
 		int xp = (int)x;
 		int yp = (int)y;
 		int zp = (int)z;

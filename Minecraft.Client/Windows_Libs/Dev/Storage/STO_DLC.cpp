@@ -140,8 +140,9 @@ DWORD CDLC::MountInstalledDLC(int iPad, DWORD dwDLC, int (*Func)(LPVOID, int, DW
     this->m_uiCurrentMappedDLC = dwDLC;
 
     char *dlcdirPath = m_vInstalledDLCs[m_uiCurrentMappedDLC].szFileName;
-    m_vDLCDriveMappings.push_back(DriveMapping(dlcdirPath, m_szMountPath));
+    m_vDLCDriveMappings.push_back(DriveMapping(m_szMountPath, dlcdirPath));
 
+    dword94 = 0xFFFFFFFF;
     m_iHasNewMountedDLCs = true;
 
     return 997;

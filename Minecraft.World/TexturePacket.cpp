@@ -37,9 +37,19 @@ void TexturePacket::handle(PacketListener *listener)
 void TexturePacket::read(DataInputStream *dis) //throws IOException
 {
 	textureName = dis->readUTF();
-	dwBytes = (DWORD)dis->readShort();
+	short rawBytes = dis->readShort();
+	if(rawBytes <= 0)
+	{
+		dwBytes = 0;
+		return;
+	}
+	dwBytes = (DWORD)(unsigned short)rawBytes;
+	if(dwBytes > 65536)
+	{
+		dwBytes = 0;
+		return;
+	}
 
-	if(dwBytes>0)
 	{
 		this->pbData= new BYTE [dwBytes];
 

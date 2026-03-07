@@ -79,27 +79,44 @@ Tag *Tag::setName(const wstring& name)
 
 Tag *Tag::readNamedTag(DataInput *dis)
 {
-	byte type = dis->readByte();
-	if (type == 0) return new EndTag();
+	static __declspec(thread) int depth = 0;
+	static __declspec(thread) int totalTagCount = 0;
 
-	// 4J Stu - readByte can return -1, so if it's that then also mark as the end tag
-	if(type == 255)
+	if (depth == 0)
+		totalTagCount = 0;
+
+	depth++;
+
+	if (depth > 256)
 	{
-		app.DebugPrintf("readNamedTag read a type of 255\n");
-#ifndef _CONTENT_PACKAGE
-		__debugbreak();
-#endif
+		depth--;
 		return new EndTag();
 	}
 
-	wstring name = dis->readUTF();//new String(bytes, "UTF-8");
+	totalTagCount++;
+	const int MAX_TOTAL_TAGS = 32768;
+	if (totalTagCount > MAX_TOTAL_TAGS)
+	{
+		depth--;
+		return new EndTag();
+	}
+
+	byte type = dis->readByte();
+	if (type == 0) { depth--; return new EndTag(); }
+
+	if(type == 255)
+	{
+		depth--;
+		return new EndTag();
+	}
+
+	wstring name = dis->readUTF();
 
 	Tag *tag = newTag(type, name);
-	//        short length = dis.readShort();
-	//        byte[] bytes = new byte[length];
-	//        dis.readFully(bytes);
+	if (tag == NULL) { depth--; return new EndTag(); }
 
 	tag->load(dis);
+	depth--;
 	return tag;
 }
 

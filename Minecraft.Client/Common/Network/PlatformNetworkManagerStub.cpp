@@ -231,6 +231,8 @@ void CPlatformNetworkManagerStub::DoWork()
 		BYTE disconnectedSmallId;
 		while (WinsockNetLayer::PopDisconnectedSmallId(&disconnectedSmallId))
 		{
+			if (disconnectedSmallId == 0) continue;
+			if (WinsockNetLayer::IsSmallIdConnected(disconnectedSmallId)) continue;
 			IQNetPlayer *qnetPlayer = m_pIQNet->GetPlayerBySmallId(disconnectedSmallId);
 			if (qnetPlayer != NULL && qnetPlayer->m_smallId == disconnectedSmallId)
 			{
@@ -243,6 +245,16 @@ void CPlatformNetworkManagerStub::DoWork()
 				WinsockNetLayer::PushFreeSmallId(disconnectedSmallId);
 				if (IQNet::s_playerCount > 1)
 					IQNet::s_playerCount--;
+			}
+		}
+
+		BYTE joinedSmallId;
+		while (WinsockNetLayer::PopPendingJoinSmallId(&joinedSmallId))
+		{
+			IQNetPlayer *qnetPlayer = m_pIQNet->GetPlayerBySmallId(joinedSmallId);
+			if (qnetPlayer != NULL && qnetPlayer->m_smallId == joinedSmallId)
+			{
+				NotifyPlayerJoined(qnetPlayer);
 			}
 		}
 
@@ -293,12 +305,29 @@ int CPlatformNetworkManagerStub::GetLocalPlayerMask(int playerIndex)
 
 bool CPlatformNetworkManagerStub::AddLocalPlayerByUserIndex( int userIndex )
 {
+	if (m_pIQNet->AddLocalPlayerByUserIndex(userIndex) != S_OK) return false;
 	NotifyPlayerJoined(m_pIQNet->GetLocalPlayerByUserIndex(userIndex));
-	return ( m_pIQNet->AddLocalPlayerByUserIndex(userIndex) == S_OK );
+	return true;
 }
 
 bool CPlatformNetworkManagerStub::RemoveLocalPlayerByUserIndex( int userIndex )
 {
+#ifdef _WINDOWS64
+	if (userIndex > 0 && userIndex < XUSER_MAX_COUNT)
+	{
+		IQNetPlayer *qnetPlayer = m_pIQNet->GetLocalPlayerByUserIndex(userIndex);
+		if (qnetPlayer != NULL)
+		{
+			NotifyPlayerLeaving(qnetPlayer);
+			qnetPlayer->m_isRemote = true;
+			qnetPlayer->m_isHostPlayer = false;
+			qnetPlayer->m_gamertag[0] = 0;
+			qnetPlayer->SetCustomDataValue(0);
+			if (IQNet::s_playerCount > 1)
+				IQNet::s_playerCount--;
+		}
+	}
+#endif
 	return true;
 }
 
@@ -378,6 +407,8 @@ void CPlatformNetworkManagerStub::HostGame(int localUsersMask, bool bOnlineGame,
 	IQNet::m_player[0].m_isRemote = false;
 	IQNet::m_player[0].m_isHostPlayer = true;
 	IQNet::s_playerCount = 1;
+	extern wchar_t g_Win64UsernameW[17];
+	wcscpy_s(IQNet::m_player[0].m_gamertag, 32, g_Win64UsernameW);
 #endif
 
 	_HostGame( localUsersMask, publicSlots, privateSlots );

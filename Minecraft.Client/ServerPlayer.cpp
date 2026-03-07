@@ -306,6 +306,10 @@ void ServerPlayer::doTickA()
 // 4J - split off the chunk sending bit of the tick here from ::doTick so we can do this exactly once per player per server tick
 void ServerPlayer::doChunkSendingTick(bool dontDelayChunks)
 {
+#ifdef _WINDOWS64
+	for (int _w64cs = 0; _w64cs < 4; _w64cs++)
+	{
+#endif
 //	printf("[%d] %s: sendChunks: %d, empty: %d\n",tickCount, connection->getNetworkPlayer()->GetUID().getOnlineID(),sendChunks,chunksToSend.empty());
 	if (!chunksToSend.empty())
 	{
@@ -344,6 +348,17 @@ void ServerPlayer::doChunkSendingTick(bool dontDelayChunks)
 			}
 			else
 			{
+#ifdef _WINDOWS64
+				if( dontDelayChunks || 
+					((connection->countDelayedPackets() < 16 )&&
+					(g_NetworkManager.GetHostPlayer()->GetSendQueueSizeMessages( NULL, true ) < 16 )&&
+					!connection->done) )
+				{
+					lastBrupSendTickCount = tickCount;
+					okToSend = true;
+					MinecraftServer::s_slowQueuePacketSent = true;
+				}
+#else
 				bool canSendOnSlowQueue = MinecraftServer::canSendOnSlowQueue(connection->getNetworkPlayer());
 				
 //				app.DebugPrintf("%ls: canSendOnSlowQueue %d, countDelayedPackets %d GetSendQueueSizeBytes %d done: %d",
@@ -379,6 +394,7 @@ void ServerPlayer::doChunkSendingTick(bool dontDelayChunks)
 				{
 //					app.DebugPrintf(" - <NOT OK>\n");
 				}
+#endif
 			}
 
             if (okToSend)
@@ -445,7 +461,7 @@ void ServerPlayer::doChunkSendingTick(bool dontDelayChunks)
 					for (unsigned int i = 0; i < tes->size(); i++)
 					{
 						// 4J Stu - Added delay param to ensure that these arrive after the BRUPs from above
-						// Fix for #9169 - ART : Sign text is replaced with the words “Awaiting approval”.
+						// Fix for #9169 - ART : Sign text is replaced with the words ï¿½Awaiting approvalï¿½.
 						broadcast(tes->at(i), !connection->isLocal() && !dontDelayChunks);
 					}
 					delete tes;
@@ -453,6 +469,9 @@ void ServerPlayer::doChunkSendingTick(bool dontDelayChunks)
             }
         }
     }
+#ifdef _WINDOWS64
+	}
+#endif
 }
 
 void ServerPlayer::doTickB(bool ignorePortal)

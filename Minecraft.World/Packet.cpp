@@ -287,17 +287,9 @@ __int64 Packet::getIndexedStatValue(unsigned int samplePos, unsigned int rendera
 
 shared_ptr<Packet> Packet::getPacket(int id) 
 {
-	// 4J - removed try/catch
-	//    try
-	//	{
-	return idToCreateMap[id]();
-	//    } 
-	//	catch (exception e)
-	//	{
-	//		// TODO 4J JEV print stack trace, newInstance doesnt throw an exception in c++ yet.
-	//        printf("Skipping packet with id %d" , id);
-	//        return NULL;
-	//    }
+	auto it = idToCreateMap.find(id);
+	if (it == idToCreateMap.end()) return nullptr;
+	return it->second();
 }
 
 void Packet::writeBytes(DataOutputStream *dataoutputstream, byteArray bytes)
@@ -358,14 +350,11 @@ shared_ptr<Packet> Packet::readPacket(DataInputStream *dis, bool isServer) // th
 
 	if ((isServer && serverReceivedPackets.find(id) == serverReceivedPackets.end()) || (!isServer && clientReceivedPackets.find(id) == clientReceivedPackets.end()))
 	{
-		//app.DebugPrintf("Bad packet id %d\n", id);
-		__debugbreak();
-		assert(false);
-		//            throw new IOException(wstring(L"Bad packet id ") + _toString<int>(id));
+		return nullptr;
 	}
 
 	packet = getPacket(id);
-	if (packet == NULL) assert(false);//throw new IOException(wstring(L"Bad packet id ") + _toString<int>(id));
+	if (packet == NULL) return nullptr;
 	
 	//app.DebugPrintf("%s reading packet %d\n", isServer ? "Server" : "Client", packet->getId());
 	packet->read(dis);
@@ -423,17 +412,9 @@ wstring Packet::readUtf(DataInputStream *dis, int maxLength) // throws IOExcepti
 {
 
 	short stringLength = dis->readShort();
-	if (stringLength > maxLength)
+	if (stringLength > maxLength || stringLength < 0)
 	{
-		wstringstream stream;
-		stream << L"Received string length longer than maximum allowed (" << stringLength << " > " << maxLength << ")";
-		assert(false);
-		//        throw new IOException( stream.str() );
-	}
-	if (stringLength < 0)
-	{
-		assert(false);
-		//        throw new IOException(L"Received string length is less than zero! Weird string!");
+		return L"";
 	}
 
 	wstring builder = L"";
@@ -534,7 +515,7 @@ shared_ptr<ItemInstance> Packet::readItem(DataInputStream *dis)
 {
 	shared_ptr<ItemInstance> item = nullptr;
 	int id = dis->readShort();
-	if (id >= 0)
+	if (id >= 0 && id < 32000) // validate against Item::ITEM_NUM_COUNT
 	{
 		int count = dis->readByte();
 		int damage = dis->readShort();
@@ -572,9 +553,16 @@ void Packet::writeItem(shared_ptr<ItemInstance> item, DataOutputStream *dos)
 CompoundTag *Packet::readNbt(DataInputStream *dis)
 {
 	int size = dis->readShort();
-	if (size < 0) return NULL;
+	if (size <= 0) return NULL;
+
+	const int MAX_NBT_SIZE = 32767;
+	if (size > MAX_NBT_SIZE) return NULL;
 	byteArray buff(size);
-	dis->readFully(buff);
+	if (!dis->readFully(buff))
+	{
+		delete [] buff.data;
+		return NULL;
+	}
 	CompoundTag *result = (CompoundTag *) NbtIo::decompress(buff);
 	delete [] buff.data;
 	return result;

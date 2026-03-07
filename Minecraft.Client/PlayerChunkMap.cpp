@@ -499,9 +499,13 @@ void PlayerChunkMap::getChunkAndRemovePlayer(int x, int z, shared_ptr<ServerPlay
 // 4J - added - actually create & add player to a playerchunk, if there is one queued for this player.
 void PlayerChunkMap::tickAddRequests(shared_ptr<ServerPlayer> player)
 {
-	if( addRequests.size() )
+#ifdef _WINDOWS64
+	const int maxPerTick = 10;
+#else
+	const int maxPerTick = 1;
+#endif
+	for (int _processed = 0; _processed < maxPerTick && addRequests.size(); _processed++)
 	{
-		// Find the nearest chunk request to the player
 		int px = (int)player->x;
 		int pz = (int)player->z;
 		int minDistSq = -1;
@@ -523,12 +527,14 @@ void PlayerChunkMap::tickAddRequests(shared_ptr<ServerPlayer> player)
 			}
 		}
 
-		// If we found one at all, then do this one
 		if( itNearest != addRequests.end() )
 		{
 			getChunk(itNearest->x, itNearest->z, true)->add(itNearest->player);
 			addRequests.erase(itNearest);
-			return;
+		}
+		else
+		{
+			break;
 		}
 	}
 }
