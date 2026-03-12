@@ -89,7 +89,9 @@ bool WinsockNetLayer::Initialize()
 
 	s_initialized = true;
 
+#ifndef WITH_SERVER_CODE
 	StartDiscovery();
+#endif
 
 	return true;
 }

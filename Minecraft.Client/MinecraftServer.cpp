@@ -1474,6 +1474,33 @@ void MinecraftServer::tick()
 	
     tickCount++;
 
+#ifdef WITH_SERVER_CODE
+	if (tickCount % 6000 == 0 && !s_bServerHalted)
+	{
+		app.DebugPrintf("Auto-saving world...\n");
+		if (players != NULL)
+		{
+			players->saveAll(NULL);
+		}
+		for (unsigned int j = 0; j < levels.length; j++)
+		{
+			if (s_bServerHalted) break;
+			ServerLevel *level = levels[levels.length - 1 - j];
+			if (level) level->save(false, NULL, true);
+		}
+		if (!s_bServerHalted)
+		{
+			saveGameRules();
+			levels[0]->saveToDisc(NULL, true);
+		}
+		while (StorageManager.GetSaveState() != C4JStorage::ESaveGame_Idle)
+		{
+			Sleep(10);
+		}
+		app.DebugPrintf("Auto-save complete\n");
+	}
+#endif
+
 	// 4J We need to update client difficulty levels based on the servers
 	Minecraft *pMinecraft = Minecraft::GetInstance();
 	// 4J-PB - sending this on the host changing the difficulty in the menus

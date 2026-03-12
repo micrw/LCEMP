@@ -38,7 +38,12 @@ RegionFile::RegionFile(ConsoleSaveFile *saveFile, File *path)
 	}
 	*/
 
-	fileEntry = m_saveFile->createFile( fileName->getName() );
+	wstring saveName = fileName->getPath();
+	for (size_t i = 0; i < saveName.size(); i++)
+	{
+		if (saveName[i] == L'\\') saveName[i] = L'/';
+	}
+	fileEntry = m_saveFile->createFile( ConsoleSavePath(saveName) );
 	m_saveFile->setFilePointer( fileEntry, 0, NULL, FILE_END );
 
 	if ( fileEntry->getFileSize() < SECTOR_BYTES)

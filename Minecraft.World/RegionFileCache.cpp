@@ -17,15 +17,11 @@ bool RegionFileCache::useSplitSaves(ESavePlatform platform)
 	};
 }
 
-RegionFile *RegionFileCache::_getRegionFile(ConsoleSaveFile *saveFile, const wstring &prefix, int chunkX, int chunkZ)		// 4J - TODO was synchronized
+RegionFile *RegionFileCache::_getRegionFile(ConsoleSaveFile *saveFile, const wstring &prefix, int chunkX, int chunkZ)		// 4J - synchronized restored
 {
+	EnterCriticalSection(&m_cs);
+
 	// 4J Jev - changed back to use of the File class.
-	//char file[MAX_PATH_SIZE];
-	//sprintf(file,"%s\\region\\r.%d.%d.mcr",basePath,chunkX >> 5,chunkZ >> 5);
-
-	//File regionDir(basePath, L"region");
-
-	//File file(regionDir, wstring(L"r.") + _toString(chunkX>>5) + L"." + _toString(chunkZ>>5) + L".mcr" );
 	MemSect(31);
 	File file;
 	if(useSplitSaves(saveFile->getSavePlatform()))
@@ -46,45 +42,37 @@ RegionFile *RegionFileCache::_getRegionFile(ConsoleSaveFile *saveFile, const wst
 	// 4J Jev, put back in.
     if (ref != NULL)
 	{
+		LeaveCriticalSection(&m_cs);
 		return ref;
     }
 
-	// 4J Stu - Remove for new save files
-	/*
-    if (!regionDir.exists())
-	{
-        regionDir.mkdirs();
-    }
-	*/
     if (cache.size() >= MAX_CACHE_SIZE)
 	{
         _clear();
     }
 
 	RegionFile *reg = new RegionFile(saveFile, &file);
-    cache[file] = reg;	   // 4J - this was originally a softReferenc
+    cache[file] = reg;	   // 4J - this was originally a softReference
+	LeaveCriticalSection(&m_cs);
     return reg;
 
 }
 
-void RegionFileCache::_clear()															// 4J - TODO was synchronized
+void RegionFileCache::_clear()															// 4J - synchronized (recursive CS is safe here)
 {
+	EnterCriticalSection(&m_cs);
 	AUTO_VAR(itEnd, cache.end());
 	for( AUTO_VAR(it, cache.begin()); it != itEnd; it++ )
 	{
-		// 4J - removed try/catch
-//        try {
         RegionFile *regionFile = it->second;
         if (regionFile != NULL)
 		{
             regionFile->close();
         }
 		delete regionFile;
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }	
 	}
 	cache.clear();
+	LeaveCriticalSection(&m_cs);
 }
 
 int RegionFileCache::_getSizeDelta(ConsoleSaveFile *saveFile, const wstring &prefix, int chunkX, int chunkZ)
