@@ -99,4 +99,14 @@ example:
   - If you find issues, open a PR.
   - I will review and merge if valid.
 
+## Dedicated Server
+The dedicated server lives in a [separate repo](https://github.com/LCEMP/LCEMP-Server) and is included as a git submodule under `Minecraft.Server/`.
+
+After cloning this repo, pull it with:
+```
+git submodule update --init
+```
+
+See the [Minecraft.Server README](Minecraft.Server/README.md) for build instructions, server properties, and available commands.
+
 author: notpies

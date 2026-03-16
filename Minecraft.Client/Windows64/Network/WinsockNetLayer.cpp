@@ -5,8 +5,8 @@
 #ifdef _WINDOWS64
 
 #include "WinsockNetLayer.h"
-#include "..\..\Common\Network\PlatformNetworkManagerStub.h"
-#include "..\..\..\Minecraft.World\Socket.h"
+#include "../../Common/Network/PlatformNetworkManagerStub.h"
+#include "../../../Minecraft.World/Socket.h"
 
 SOCKET WinsockNetLayer::s_listenSocket = INVALID_SOCKET;
 SOCKET WinsockNetLayer::s_hostConnectionSocket = INVALID_SOCKET;
@@ -56,6 +56,9 @@ bool g_Win64MultiplayerHost = false;
 bool g_Win64MultiplayerJoin = false;
 int g_Win64MultiplayerPort = WIN64_NET_DEFAULT_PORT;
 char g_Win64MultiplayerIP[256] = "127.0.0.1";
+
+bool g_ServerAdvertiseLAN = true;
+char g_ServerBindAddress[256] = "";
 
 bool WinsockNetLayer::Initialize()
 {
@@ -191,7 +194,15 @@ bool WinsockNetLayer::HostGame(int port)
 	char portStr[16];
 	sprintf_s(portStr, "%d", port);
 
-	int iResult = getaddrinfo(NULL, portStr, &hints, &result);
+	const char *bindNode = NULL;
+	extern char g_ServerBindAddress[256];
+	if (g_ServerBindAddress[0] != '\0')
+	{
+		bindNode = g_ServerBindAddress;
+		hints.ai_flags = 0;
+	}
+
+	int iResult = getaddrinfo(bindNode, portStr, &hints, &result);
 	if (iResult != 0)
 	{
 		app.DebugPrintf("getaddrinfo failed: %d\n", iResult);
@@ -448,6 +459,18 @@ SOCKET WinsockNetLayer::GetSocketForSmallId(BYTE smallId)
 	}
 	LeaveCriticalSection(&s_connectionsLock);
 	return INVALID_SOCKET;
+}
+
+std::string WinsockNetLayer::GetIPForSmallId(BYTE smallId)
+{
+	SOCKET sock = GetSocketForSmallId(smallId);
+	if (sock == INVALID_SOCKET) return "";
+	struct sockaddr_in addr;
+	int addrLen = sizeof(addr);
+	if (getpeername(sock, (struct sockaddr *)&addr, &addrLen) != 0) return "";
+	char buf[INET_ADDRSTRLEN];
+	if (inet_ntop(AF_INET, &addr.sin_addr, buf, sizeof(buf)) == NULL) return "";
+	return std::string(buf);
 }
 
 static bool RecvExact(SOCKET sock, BYTE *buf, int len)

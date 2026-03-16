@@ -25,6 +25,18 @@ SOFTWARE.
 #include "STO_SaveGame.h"
 #include <stdio.h>
 
+#ifdef __linux__
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <time.h>
+#include <string.h>
+#include <wchar.h>
+#endif
+
 static unsigned long s_pngCrcTable[256];
 static bool          s_pngCrcTableReady = false;
 
@@ -60,8 +72,13 @@ static inline unsigned int WriteBE32(unsigned int v)
 static void GetGameHDDPath(char *outPath, int maxLen)
 {
     char curDir[256];
+#ifdef __linux__
+    getcwd(curDir, sizeof(curDir));
+    snprintf(outPath, maxLen, "%s/Linux/GameHDD", curDir);
+#else
     GetCurrentDirectoryA(sizeof(curDir), curDir);
     sprintf_s(outPath, maxLen, "%s\\Windows64\\GameHDD", curDir);
+#endif
 }
 
 CSaveGame::CSaveGame()
@@ -86,12 +103,21 @@ CSaveGame::CSaveGame()
     char gameHDDPath[256];
     GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
 
+#ifdef __linux__
+    char curDir[256];
+    getcwd(curDir, sizeof(curDir));
+    char win64Path[256];
+    snprintf(win64Path, sizeof(win64Path), "%s/Linux", curDir);
+    mkdir(win64Path, 0755);
+    mkdir(gameHDDPath, 0755);
+#else
     char win64Path[256];
     char curDir[256];
     GetCurrentDirectoryA(sizeof(curDir), curDir);
     sprintf_s(win64Path, sizeof(win64Path), "%s\\Windows64", curDir);
     CreateDirectoryA(win64Path, 0);
     CreateDirectoryA(gameHDDPath, 0);
+#endif
 }
 
 void CSaveGame::SetSaveDisabled(bool bDisable)
@@ -114,9 +140,6 @@ void CSaveGame::ResetSaveData()
 C4JStorage::ESaveGameState CSaveGame::GetSavesInfo(int iPad, int (*Func)(LPVOID lpParam, SAVE_DETAILS *pSaveDetails, const bool), LPVOID lpParam,
                                                    char *pszSavePackName)
 {
-    WIN32_FIND_DATAA findFileData;
-    WIN32_FILE_ATTRIBUTE_DATA fileInfoBuffer;
-
     if (!m_pSaveDetails)
     {
         m_pSaveDetails = new SAVE_DETAILS();
@@ -129,6 +152,89 @@ C4JStorage::ESaveGameState CSaveGame::GetSavesInfo(int iPad, int (*Func)(LPVOID 
 
     char gameHDDPath[256];
     GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
+
+#ifdef __linux__
+    int resultCount = 0;
+    DIR *dir = opendir(gameHDDPath);
+    if (!dir)
+    {
+
+    }
+    else
+    {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL)
+        {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+            char saveFilePath[512];
+            snprintf(saveFilePath, sizeof(saveFilePath), "%s/%s/saveData.ms", gameHDDPath, entry->d_name);
+            struct stat st;
+            if (stat(saveFilePath, &st) == 0)
+                resultCount++;
+        }
+        closedir(dir);
+    }
+
+    if (resultCount > 0)
+    {
+        m_pSaveDetails->SaveInfoA = new SAVE_INFO[resultCount];
+        memset(m_pSaveDetails->SaveInfoA, 0, sizeof(SAVE_INFO) * resultCount);
+        m_pSaveDetails->iSaveC = 0;
+
+        int i = 0;
+        dir = opendir(gameHDDPath);
+        if (dir)
+        {
+            struct dirent *entry;
+            while ((entry = readdir(dir)) != NULL)
+            {
+                if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                    continue;
+
+                char saveFilePath[512];
+                snprintf(saveFilePath, sizeof(saveFilePath), "%s/%s/saveData.ms", gameHDDPath, entry->d_name);
+                struct stat stFile;
+                if (stat(saveFilePath, &stFile) != 0)
+                    continue;
+
+                strncpy(m_pSaveDetails->SaveInfoA[i].UTF8SaveFilename, entry->d_name, sizeof(m_pSaveDetails->SaveInfoA[i].UTF8SaveFilename) - 1);
+
+                char saveDirPath[512];
+                snprintf(saveDirPath, sizeof(saveDirPath), "%s/%s", gameHDDPath, entry->d_name);
+
+                char titleBuf[MAX_DISPLAYNAME_LENGTH];
+                if (LoadTitleFromFile(saveDirPath, titleBuf, sizeof(titleBuf)))
+                {
+                    strncpy(m_pSaveDetails->SaveInfoA[i].UTF8SaveTitle, titleBuf, sizeof(m_pSaveDetails->SaveInfoA[i].UTF8SaveTitle) - 1);
+                }
+                else
+                {
+                    strncpy(m_pSaveDetails->SaveInfoA[i].UTF8SaveTitle, entry->d_name, sizeof(m_pSaveDetails->SaveInfoA[i].UTF8SaveTitle) - 1);
+                }
+
+                m_pSaveDetails->SaveInfoA[i].metaData.dataSize = (DWORD)stFile.st_size;
+
+                char thumbFilePath[512];
+                snprintf(thumbFilePath, sizeof(thumbFilePath), "%s/%s/saveThumbnail.png", gameHDDPath, entry->d_name);
+                struct stat stThumb;
+                if (stat(thumbFilePath, &stThumb) == 0)
+                {
+                    m_pSaveDetails->SaveInfoA[i].metaData.thumbnailSize = (DWORD)stThumb.st_size;
+                }
+
+                m_pSaveDetails->SaveInfoA[i].metaData.modifiedTime = stFile.st_mtime;
+
+                i++;
+                m_pSaveDetails->iSaveC++;
+            }
+            closedir(dir);
+        }
+    }
+
+#else
+    WIN32_FIND_DATAA findFileData;
+    WIN32_FILE_ATTRIBUTE_DATA fileInfoBuffer;
 
     char searchPattern[280];
     sprintf_s(searchPattern, sizeof(searchPattern), "%s\\*", gameHDDPath);
@@ -193,7 +299,6 @@ C4JStorage::ESaveGameState CSaveGame::GetSavesInfo(int iPad, int (*Func)(LPVOID 
                     }
                     else
                     {
-                        // fallback: use the folder name as the display title
                         strcpy_s(m_pSaveDetails->SaveInfoA[i].UTF8SaveTitle, findFileData.cFileName);
                     }
 
@@ -222,6 +327,7 @@ C4JStorage::ESaveGameState CSaveGame::GetSavesInfo(int iPad, int (*Func)(LPVOID 
             FindClose(fi);
         }
     }
+#endif
 
     m_bHasSaveDetails = true;
     if (Func)
@@ -266,6 +372,33 @@ C4JStorage::ESaveGameState CSaveGame::LoadSaveDataThumbnail(PSAVE_INFO pSaveInfo
     GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
 
     char thumbPath[512];
+#ifdef __linux__
+    snprintf(thumbPath, sizeof(thumbPath), "%s/%s/saveThumbnail.png", gameHDDPath, pSaveInfo->UTF8SaveFilename);
+
+    int fd = open(thumbPath, O_RDONLY);
+    if (fd >= 0)
+    {
+        struct stat st;
+        if (fstat(fd, &st) == 0 && st.st_size > 0)
+        {
+            pbThumbnail = (PBYTE)malloc(st.st_size);
+            if (pbThumbnail)
+            {
+                ssize_t bytesRead = read(fd, pbThumbnail, st.st_size);
+                if (bytesRead == st.st_size)
+                {
+                    dwThumbnailBytes = (DWORD)st.st_size;
+                }
+                else
+                {
+                    free(pbThumbnail);
+                    pbThumbnail = nullptr;
+                }
+            }
+        }
+        close(fd);
+    }
+#else
     sprintf_s(thumbPath, sizeof(thumbPath), "%s\\%s\\saveThumbnail.png", gameHDDPath, pSaveInfo->UTF8SaveFilename);
 
     HANDLE h = CreateFileA(thumbPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
@@ -291,6 +424,7 @@ C4JStorage::ESaveGameState CSaveGame::LoadSaveDataThumbnail(PSAVE_INFO pSaveInfo
         }
         CloseHandle(h);
     }
+#endif
 
     Func(lpParam, pbThumbnail, dwThumbnailBytes);
 
@@ -315,6 +449,46 @@ C4JStorage::ESaveGameState CSaveGame::LoadSaveData(PSAVE_INFO pSaveInfo, int (*F
     char gameHDDPath[256];
     GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
 
+#ifdef __linux__
+    char saveDirPath[512];
+    snprintf(saveDirPath, sizeof(saveDirPath), "%s/%s", gameHDDPath, m_szSaveUniqueName);
+
+    char titleBuf[MAX_DISPLAYNAME_LENGTH];
+    if (LoadTitleFromFile(saveDirPath, titleBuf, sizeof(titleBuf)))
+    {
+        mbstowcs(m_wszSaveTitle, titleBuf, MAX_DISPLAYNAME_LENGTH);
+    }
+
+    char fileName[512];
+    snprintf(fileName, sizeof(fileName), "%s/saveData.ms", saveDirPath);
+
+    struct stat stFile;
+    if (stat(fileName, &stFile) != 0)
+    {
+        if (Func) Func(lpParam, 0, false);
+        return C4JStorage::ESaveGame_Idle;
+    }
+
+    m_uiSaveSize = (unsigned int)stFile.st_size;
+    m_pSaveData = malloc(m_uiSaveSize);
+
+    int fd = open(fileName, O_RDONLY);
+    bool success = false;
+    if (fd >= 0)
+    {
+        ssize_t bytesRead = read(fd, m_pSaveData, m_uiSaveSize);
+        close(fd);
+        success = (bytesRead == (ssize_t)m_uiSaveSize);
+    }
+
+    if (!success && m_pSaveData)
+    {
+        free(m_pSaveData);
+        m_pSaveData = nullptr;
+        m_uiSaveSize = 0;
+    }
+
+#else
     char saveDirPath[512];
     sprintf_s(saveDirPath, sizeof(saveDirPath), "%s\\%s", gameHDDPath, m_szSaveUniqueName);
 
@@ -355,6 +529,7 @@ C4JStorage::ESaveGameState CSaveGame::LoadSaveData(PSAVE_INFO pSaveInfo, int (*F
         m_pSaveData = nullptr;
         m_uiSaveSize = 0;
     }
+#endif
 
     if (Func)
     {
@@ -509,6 +684,45 @@ C4JStorage::ESaveGameState CSaveGame::SaveSaveData(int (*Func)(LPVOID, const boo
     char gameHDDPath[256];
     GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
 
+#ifdef __linux__
+    char saveDirPath[512];
+    snprintf(saveDirPath, sizeof(saveDirPath), "%s/%s", gameHDDPath, m_szSaveUniqueName);
+    mkdir(saveDirPath, 0755);
+
+    char saveFilePath[512];
+    snprintf(saveFilePath, sizeof(saveFilePath), "%s/saveData.ms", saveDirPath);
+
+    int fd = open(saveFilePath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0)
+    {
+        if (Func) Func(lpParam, false);
+        return C4JStorage::ESaveGame_Idle;
+    }
+
+    ssize_t bytesWritten = write(fd, m_pSaveData, m_uiSaveSize);
+    close(fd);
+
+    SaveTitleFile(saveDirPath);
+
+    if (m_pbThumbnail && m_dwThumbnailBytes > 0)
+    {
+        char thumbPath[512];
+        snprintf(thumbPath, sizeof(thumbPath), "%s/saveThumbnail.png", saveDirPath);
+
+        int tfd = open(thumbPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (tfd >= 0)
+        {
+            write(tfd, m_pbThumbnail, m_dwThumbnailBytes);
+            close(tfd);
+        }
+
+        free(m_pbThumbnail);
+        m_pbThumbnail = nullptr;
+        m_dwThumbnailBytes = 0;
+    }
+
+    bool success = (bytesWritten == (ssize_t)m_uiSaveSize);
+#else
     char saveDirPath[512];
     sprintf_s(saveDirPath, sizeof(saveDirPath), "%s\\%s", gameHDDPath, m_szSaveUniqueName);
     CreateDirectoryA(saveDirPath, 0);
@@ -527,9 +741,7 @@ C4JStorage::ESaveGameState CSaveGame::SaveSaveData(int (*Func)(LPVOID, const boo
     BOOL res = WriteFile(h, m_pSaveData, m_uiSaveSize, &bytesWritten, 0);
     CloseHandle(h);
 
-
     SaveTitleFile(saveDirPath);
-
 
     if (m_pbThumbnail && m_dwThumbnailBytes > 0)
     {
@@ -544,13 +756,14 @@ C4JStorage::ESaveGameState CSaveGame::SaveSaveData(int (*Func)(LPVOID, const boo
             CloseHandle(hThumb);
         }
 
-
         free(m_pbThumbnail);
         m_pbThumbnail = nullptr;
         m_dwThumbnailBytes = 0;
     }
 
     bool success = (res && bytesWritten == m_uiSaveSize);
+#endif
+
     if (Func) Func(lpParam, success);
 
     return C4JStorage::ESaveGame_Idle;
@@ -561,6 +774,30 @@ C4JStorage::ESaveGameState CSaveGame::DeleteSaveData(PSAVE_INFO pSaveInfo, int (
     char gameHDDPath[256];
     GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
 
+#ifdef __linux__
+    char saveDirPath[512];
+    snprintf(saveDirPath, sizeof(saveDirPath), "%s/%s", gameHDDPath, pSaveInfo->UTF8SaveFilename);
+
+    DIR *dir = opendir(saveDirPath);
+    if (dir)
+    {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL)
+        {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+            char filePath[512];
+            snprintf(filePath, sizeof(filePath), "%s/%s", saveDirPath, entry->d_name);
+            unlink(filePath);
+        }
+        closedir(dir);
+    }
+
+    rmdir(saveDirPath);
+
+    struct stat st;
+    bool success = (stat(saveDirPath, &st) != 0);
+#else
     char saveDirPath[512];
     sprintf_s(saveDirPath, sizeof(saveDirPath), "%s\\%s", gameHDDPath, pSaveInfo->UTF8SaveFilename);
 
@@ -586,6 +823,7 @@ C4JStorage::ESaveGameState CSaveGame::DeleteSaveData(PSAVE_INFO pSaveInfo, int (
     RemoveDirectoryA(saveDirPath);
 
     bool success = (GetFileAttributesA(saveDirPath) == INVALID_FILE_ATTRIBUTES);
+#endif
 
     if (Func) Func(lpParam, success);
 
@@ -604,9 +842,14 @@ C4JStorage::ESaveGameState CSaveGame::DoesSaveExist(bool *pbExists)
     GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
 
     char saveFilePath[512];
+#ifdef __linux__
+    snprintf(saveFilePath, sizeof(saveFilePath), "%s/%s/saveData.ms", gameHDDPath, m_szSaveUniqueName);
+    struct stat st;
+    *pbExists = (stat(saveFilePath, &st) == 0);
+#else
     sprintf_s(saveFilePath, sizeof(saveFilePath), "%s\\%s\\saveData.ms", gameHDDPath, m_szSaveUniqueName);
-
     *pbExists = (GetFileAttributesA(saveFilePath) != INVALID_FILE_ATTRIBUTES);
+#endif
     return C4JStorage::ESaveGame_Idle;
 }
 
@@ -620,6 +863,64 @@ void CSaveGame::CopySaveDataToNewSave(PBYTE pbThumbnail, DWORD cbThumbnail, WCHA
     char gameHDDPath[256];
     GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
 
+#ifdef __linux__
+    char newSaveDirPath[512];
+    snprintf(newSaveDirPath, sizeof(newSaveDirPath), "%s/%s", gameHDDPath, m_szSaveUniqueName);
+    mkdir(newSaveDirPath, 0755);
+
+    char oldSaveFile[512], newSaveFile[512];
+    snprintf(oldSaveFile, sizeof(oldSaveFile), "%s/%s/saveData.ms", gameHDDPath, oldUniqueName);
+    snprintf(newSaveFile, sizeof(newSaveFile), "%s/saveData.ms", newSaveDirPath);
+
+    {
+        int sfd = open(oldSaveFile, O_RDONLY);
+        int dfd = open(newSaveFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (sfd >= 0 && dfd >= 0)
+        {
+            char buf[8192];
+            ssize_t n;
+            while ((n = read(sfd, buf, sizeof(buf))) > 0) write(dfd, buf, n);
+        }
+        if (sfd >= 0) close(sfd);
+        if (dfd >= 0) close(dfd);
+    }
+
+    char oldThumbFile[512], newThumbFile[512];
+    snprintf(oldThumbFile, sizeof(oldThumbFile), "%s/%s/saveThumbnail.png", gameHDDPath, oldUniqueName);
+    snprintf(newThumbFile, sizeof(newThumbFile), "%s/saveThumbnail.png", newSaveDirPath);
+
+    {
+        int sfd = open(oldThumbFile, O_RDONLY);
+        int dfd = open(newThumbFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (sfd >= 0 && dfd >= 0)
+        {
+            char buf[8192];
+            ssize_t n;
+            while ((n = read(sfd, buf, sizeof(buf))) > 0) write(dfd, buf, n);
+        }
+        if (sfd >= 0) close(sfd);
+        if (dfd >= 0) close(dfd);
+    }
+
+    if (pbThumbnail && cbThumbnail > 0)
+    {
+        int tfd = open(newThumbFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (tfd >= 0)
+        {
+            write(tfd, pbThumbnail, cbThumbnail);
+            close(tfd);
+        }
+    }
+
+    if (wchNewName)
+    {
+        wcscpy_s(m_wszSaveTitle, MAX_DISPLAYNAME_LENGTH, wchNewName);
+    }
+    SaveTitleFile(newSaveDirPath);
+
+    struct stat st;
+    bool success = (stat(newSaveFile, &st) == 0);
+#else
     char newSaveDirPath[512];
     sprintf_s(newSaveDirPath, sizeof(newSaveDirPath), "%s\\%s", gameHDDPath, m_szSaveUniqueName);
     CreateDirectoryA(newSaveDirPath, 0);
@@ -652,6 +953,7 @@ void CSaveGame::CopySaveDataToNewSave(PBYTE pbThumbnail, DWORD cbThumbnail, WCHA
     SaveTitleFile(newSaveDirPath);
 
     bool success = (GetFileAttributesA(newSaveFile) != INVALID_FILE_ATTRIBUTES);
+#endif
     if (Func) Func(lpParam, success);
 }
 
@@ -662,11 +964,19 @@ void CSaveGame::SetSaveUniqueFilename(char *szFilename)
 
 void CSaveGame::CreateSaveUniqueName(void)
 {
+#ifdef __linux__
+    time_t now = time(NULL);
+    struct tm t;
+    gmtime_r(&now, &t);
+    snprintf(m_szSaveUniqueName, sizeof(m_szSaveUniqueName), "%4d%02d%02d%02d%02d%02d",
+             t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+#else
     _SYSTEMTIME UTCSysTime;
     GetSystemTime(&UTCSysTime);
 
     sprintf_s(m_szSaveUniqueName, sizeof(m_szSaveUniqueName), "%4d%02d%02d%02d%02d%02d", UTCSysTime.wYear, UTCSysTime.wMonth, UTCSysTime.wDay,
               UTCSysTime.wHour, UTCSysTime.wMinute, UTCSysTime.wSecond);
+#endif
 }
 
 void CSaveGame::SaveTitleFile(const char *saveDirPath)
@@ -675,6 +985,22 @@ void CSaveGame::SaveTitleFile(const char *saveDirPath)
         return;
 
     char titleFilePath[512];
+#ifdef __linux__
+    snprintf(titleFilePath, sizeof(titleFilePath), "%s/saveTitle.txt", saveDirPath);
+
+    char utf8Title[MAX_DISPLAYNAME_LENGTH * 3];
+    int len = (int)wcstombs(utf8Title, m_wszSaveTitle, sizeof(utf8Title));
+
+    if (len > 0)
+    {
+        int fd = open(titleFilePath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd >= 0)
+        {
+            write(fd, utf8Title, len);
+            close(fd);
+        }
+    }
+#else
     sprintf_s(titleFilePath, sizeof(titleFilePath), "%s\\saveTitle.txt", saveDirPath);
 
     char utf8Title[MAX_DISPLAYNAME_LENGTH * 3];
@@ -686,15 +1012,40 @@ void CSaveGame::SaveTitleFile(const char *saveDirPath)
         if (h != INVALID_HANDLE_VALUE)
         {
             DWORD bytesWritten = 0;
-            WriteFile(h, utf8Title, len - 1, &bytesWritten, 0); // don't write null terminator
+            WriteFile(h, utf8Title, len - 1, &bytesWritten, 0);
             CloseHandle(h);
         }
     }
+#endif
 }
 
 bool CSaveGame::LoadTitleFromFile(const char *saveDirPath, char *outUTF8Title, int maxLen)
 {
     char titleFilePath[512];
+#ifdef __linux__
+    snprintf(titleFilePath, sizeof(titleFilePath), "%s/saveTitle.txt", saveDirPath);
+
+    int fd = open(titleFilePath, O_RDONLY);
+    if (fd < 0)
+        return false;
+
+    struct stat st;
+    if (fstat(fd, &st) != 0 || st.st_size == 0 || st.st_size >= maxLen)
+    {
+        close(fd);
+        return false;
+    }
+
+    ssize_t bytesRead = read(fd, outUTF8Title, st.st_size);
+    close(fd);
+
+    if (bytesRead > 0)
+    {
+        outUTF8Title[bytesRead] = '\0';
+        return true;
+    }
+    return false;
+#else
     sprintf_s(titleFilePath, sizeof(titleFilePath), "%s\\saveTitle.txt", saveDirPath);
 
     HANDLE h = CreateFileA(titleFilePath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
@@ -718,6 +1069,7 @@ bool CSaveGame::LoadTitleFromFile(const char *saveDirPath, char *outUTF8Title, i
         return true;
     }
     return false;
+#endif
 }
 
 void CSaveGame::SetDefaultImages(PBYTE pbOptionsImage, DWORD dwOptionsImageBytes, PBYTE pbSaveImage, DWORD dwSaveImageBytes, PBYTE pbSaveThumbnail, DWORD dwSaveThumbnailBytes)
@@ -776,9 +1128,6 @@ C4JStorage::ESaveGameState CSaveGame::RenameSaveData(int iRenameIndex, uint16_t 
         char gameHDDPath[256];
         GetGameHDDPath(gameHDDPath, sizeof(gameHDDPath));
 
-        char saveDirPath[512];
-        sprintf_s(saveDirPath, sizeof(saveDirPath), "%s\\%s", gameHDDPath, m_pSaveDetails->SaveInfoA[iRenameIndex].UTF8SaveFilename);
-
         wchar_t newTitle[MAX_DISPLAYNAME_LENGTH];
         int i = 0;
         while (i < MAX_DISPLAYNAME_LENGTH - 1 && pui16NewName[i] != 0)
@@ -787,6 +1136,32 @@ C4JStorage::ESaveGameState CSaveGame::RenameSaveData(int iRenameIndex, uint16_t 
             i++;
         }
         newTitle[i] = L'\0';
+
+#ifdef __linux__
+        char saveDirPath[512];
+        snprintf(saveDirPath, sizeof(saveDirPath), "%s/%s", gameHDDPath, m_pSaveDetails->SaveInfoA[iRenameIndex].UTF8SaveFilename);
+
+        char titleFilePath[512];
+        snprintf(titleFilePath, sizeof(titleFilePath), "%s/saveTitle.txt", saveDirPath);
+
+        char utf8Title[MAX_DISPLAYNAME_LENGTH * 3];
+        int len = (int)wcstombs(utf8Title, newTitle, sizeof(utf8Title));
+
+        if (len > 0)
+        {
+            int fd = open(titleFilePath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd >= 0)
+            {
+                write(fd, utf8Title, len);
+                close(fd);
+
+                wcstombs(m_pSaveDetails->SaveInfoA[iRenameIndex].UTF8SaveTitle, newTitle, MAX_DISPLAYNAME_LENGTH);
+                bSuccess = true;
+            }
+        }
+#else
+        char saveDirPath[512];
+        sprintf_s(saveDirPath, sizeof(saveDirPath), "%s\\%s", gameHDDPath, m_pSaveDetails->SaveInfoA[iRenameIndex].UTF8SaveFilename);
 
         char titleFilePath[512];
         sprintf_s(titleFilePath, sizeof(titleFilePath), "%s\\saveTitle.txt", saveDirPath);
@@ -807,6 +1182,7 @@ C4JStorage::ESaveGameState CSaveGame::RenameSaveData(int iRenameIndex, uint16_t 
                 bSuccess = true;
             }
         }
+#endif
     }
 
     if (Func) Func(lpParam, bSuccess);

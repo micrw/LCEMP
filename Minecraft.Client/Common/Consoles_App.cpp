@@ -1,65 +1,65 @@
-﻿
+
 #include "stdafx.h"
 
 #include <time.h>
-#include "..\..\Minecraft.World\Recipy.h"
-#include "..\..\Minecraft.Client\Options.h"
-#include "..\..\Minecraft.World\AABB.h"
-#include "..\..\Minecraft.World\Vec3.h"
-#include "..\MinecraftServer.h"
-#include "..\MultiPlayerLevel.h"
-#include "..\GameRenderer.h"
-#include "..\ProgressRenderer.h"
-#include "..\..\Minecraft.Client\LevelRenderer.h"
-#include "..\..\Minecraft.Client\MobSkinMemTextureProcessor.h"
-#include "..\..\Minecraft.Client\Minecraft.h"
-#include "..\ClientConnection.h"
-#include "..\MultiPlayerLocalPlayer.h"
-#include "..\..\Minecraft.Client\LocalPlayer.h"
-#include "..\..\Minecraft.World\Player.h"
-#include "..\..\Minecraft.World\Inventory.h"
-#include "..\..\Minecraft.World\Level.h"
-#include "..\..\Minecraft.World\FurnaceTileEntity.h"
-#include "..\..\Minecraft.World\Container.h"
-#include "..\..\Minecraft.World\DispenserTileEntity.h"
-#include "..\..\Minecraft.World\SignTileEntity.h"
-#include "..\..\Minecraft.Client\StatsCounter.h"
-#include "..\GameMode.h"
-#include "..\Xbox\Social\SocialManager.h"
-#include "Tutorial\TutorialMode.h"
+#include "../../Minecraft.World/Recipy.h"
+#include "../../Minecraft.Client/Options.h"
+#include "../../Minecraft.World/AABB.h"
+#include "../../Minecraft.World/Vec3.h"
+#include "../MinecraftServer.h"
+#include "../MultiPlayerLevel.h"
+#include "../GameRenderer.h"
+#include "../ProgressRenderer.h"
+#include "../../Minecraft.Client/LevelRenderer.h"
+#include "../../Minecraft.Client/MobSkinMemTextureProcessor.h"
+#include "../../Minecraft.Client/Minecraft.h"
+#include "../ClientConnection.h"
+#include "../MultiPlayerLocalPlayer.h"
+#include "../../Minecraft.Client/LocalPlayer.h"
+#include "../../Minecraft.World/Player.h"
+#include "../../Minecraft.World/Inventory.h"
+#include "../../Minecraft.World/Level.h"
+#include "../../Minecraft.World/FurnaceTileEntity.h"
+#include "../../Minecraft.World/Container.h"
+#include "../../Minecraft.World/DispenserTileEntity.h"
+#include "../../Minecraft.World/SignTileEntity.h"
+#include "../../Minecraft.Client/StatsCounter.h"
+#include "../GameMode.h"
+#include "../Xbox/Social/SocialManager.h"
+#include "Tutorial/TutorialMode.h"
 #if defined _XBOX || defined _WINDOWS64
-#include "..\..\Minecraft.Client\Xbox\XML\ATGXmlParser.h"
-#include "..\..\Minecraft.Client\Xbox\XML\xmlFilesCallback.h"
+#include "../../Minecraft.Client/Xbox/XML/ATGXmlParser.h"
+#include "../../Minecraft.Client/Xbox/XML/xmlFilesCallback.h"
 #endif
 #include "Minecraft_Macros.h"
-#include "..\..\Minecraft.Client\PlayerList.h"
-#include "..\..\Minecraft.Client\ServerPlayer.h"
-#include "GameRules\ConsoleGameRules.h"
-#include "GameRules\ConsoleSchematicFile.h"
-#include "..\..\Minecraft.World\InputOutputStream.h"
-#include "..\..\Minecraft.World\LevelSettings.h"
-#include "..\User.h"
-#include "..\..\Minecraft.World\LevelData.h"
-#include "..\..\Minecraft.World\net.minecraft.world.entity.player.h"
-#include "..\..\Minecraft.Client\EntityRenderDispatcher.h"
-#include "..\..\Minecraft.World\compression.h"
-#include "..\TexturePackRepository.h"
-#include "..\DLCTexturePack.h"
-#include "DLC\DLCPack.h"
-#include "..\StringTable.h"
+#include "../../Minecraft.Client/PlayerList.h"
+#include "../../Minecraft.Client/ServerPlayer.h"
+#include "GameRules/ConsoleGameRules.h"
+#include "GameRules/ConsoleSchematicFile.h"
+#include "../../Minecraft.World/InputOutputStream.h"
+#include "../../Minecraft.World/LevelSettings.h"
+#include "../User.h"
+#include "../../Minecraft.World/LevelData.h"
+#include "../../Minecraft.World/net.minecraft.world.entity.player.h"
+#include "../../Minecraft.Client/EntityRenderDispatcher.h"
+#include "../../Minecraft.World/compression.h"
+#include "../TexturePackRepository.h"
+#include "../DLCTexturePack.h"
+#include "DLC/DLCPack.h"
+#include "../StringTable.h"
 #ifndef _XBOX
-#include "..\ArchiveFile.h"
+#include "../ArchiveFile.h"
 #endif
-#include "..\Minecraft.h"
+#include "../Minecraft.h"
 #ifdef _XBOX
-#include "..\Xbox\GameConfig\Minecraft.spa.h"
-#include "..\Xbox\Network\NetworkPlayerXbox.h"
-#include "XUI\XUI_TextEntry.h"
-#include "XUI\XUI_XZP_Icons.h"
-#include "XUI\XUI_PauseMenu.h"
+#include "../Xbox/GameConfig/Minecraft.spa.h"
+#include "../Xbox/Network/NetworkPlayerXbox.h"
+#include "XUI/XUI_TextEntry.h"
+#include "XUI/XUI_XZP_Icons.h"
+#include "XUI/XUI_PauseMenu.h"
 #else
-#include "UI\UI.h"
-#include "UI\UIScene_PauseMenu.h"
+#include "UI/UI.h"
+#include "UI/UIScene_PauseMenu.h"
 #endif
 #ifdef __PS3__
 #include <sys/tty.h>
@@ -68,7 +68,7 @@
 #include <save_data_dialog.h>
 #endif
 
-#include "..\Common\Leaderboards\LeaderboardManager.h"
+#include "../Common/Leaderboards/LeaderboardManager.h"
 
 //CMinecraftApp app;
 unsigned int CMinecraftApp::m_uiLastSignInData = 0;
@@ -260,6 +260,7 @@ void CMinecraftApp::DebugPrintf(const char *szFormat, ...)
 		struct tm t;
 		localtime_s(&t, &now);
 		printf("[%02d:%02d:%02d] [Server thread/INFO]: %s\n", t.tm_hour, t.tm_min, t.tm_sec, buf);
+		fflush(stdout);
 	}
 #endif
 #endif
@@ -4290,6 +4291,18 @@ int CMinecraftApp::SignoutExitWorldThreadProc( void* lpParameter )
 			case DisconnectPacket::eDisconnect_Kicked:
 				exitReasonStringId = IDS_DISCONNECTED_KICKED;
 				break;
+			case DisconnectPacket::eDisconnect_NotWhitelisted:
+				exitReasonStringId = IDS_DISCONNECTED_NOT_WHITELISTED;
+				break;
+			case DisconnectPacket::eDisconnect_ServerBanned:
+				exitReasonStringId = IDS_DISCONNECTED_SERVER_BANNED;
+				break;
+			case DisconnectPacket::eDisconnect_IPBanned:
+				exitReasonStringId = IDS_DISCONNECTED_IP_BANNED;
+				break;
+			case DisconnectPacket::eDisconnect_InvalidUsername:
+				exitReasonStringId = IDS_DISCONNECTED_INVALID_USERNAME;
+				break;
 			case DisconnectPacket::eDisconnect_NoUGC_AllLocal:
 				exitReasonStringId = IDS_NO_USER_CREATED_CONTENT_PRIVILEGE_ALL_LOCAL;
 				break;
@@ -4345,6 +4358,18 @@ int CMinecraftApp::SignoutExitWorldThreadProc( void* lpParameter )
 			{
 			case DisconnectPacket::eDisconnect_Kicked:
 				exitReasonStringId = IDS_DISCONNECTED_KICKED;
+				break;
+			case DisconnectPacket::eDisconnect_NotWhitelisted:
+				exitReasonStringId = IDS_DISCONNECTED_NOT_WHITELISTED;
+				break;
+			case DisconnectPacket::eDisconnect_ServerBanned:
+				exitReasonStringId = IDS_DISCONNECTED_SERVER_BANNED;
+				break;
+			case DisconnectPacket::eDisconnect_IPBanned:
+				exitReasonStringId = IDS_DISCONNECTED_IP_BANNED;
+				break;
+			case DisconnectPacket::eDisconnect_InvalidUsername:
+				exitReasonStringId = IDS_DISCONNECTED_INVALID_USERNAME;
 				break;
 			case DisconnectPacket::eDisconnect_NoUGC_AllLocal:
 				exitReasonStringId = IDS_NO_USER_CREATED_CONTENT_PRIVILEGE_ALL_LOCAL;

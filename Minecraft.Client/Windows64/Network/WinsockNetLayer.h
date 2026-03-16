@@ -1,11 +1,15 @@
 #pragma once
 
+#ifdef __linux__
+#include "../../../Minecraft.Server/Linux/PosixNetLayer.h"
+#else
+
 #ifdef _WINDOWS64
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <vector>
-#include "..\..\Common\Network\NetworkPlayerInterface.h"
+#include "../../Common/Network/NetworkPlayerInterface.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -83,6 +87,7 @@ public:
 	static BYTE GetHostSmallId() { return s_hostSmallId; }
 
 	static SOCKET GetSocketForSmallId(BYTE smallId);
+	static std::string GetIPForSmallId(BYTE smallId);
 
 	static void HandleDataReceived(BYTE fromSmallId, BYTE toSmallId, unsigned char *data, unsigned int dataSize);
 	static void FlushPendingData();
@@ -163,5 +168,7 @@ extern bool g_Win64MultiplayerHost;
 extern bool g_Win64MultiplayerJoin;
 extern int g_Win64MultiplayerPort;
 extern char g_Win64MultiplayerIP[256];
+
+#endif
 
 #endif

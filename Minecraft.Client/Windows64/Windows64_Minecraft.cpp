@@ -4,44 +4,44 @@
 #include "stdafx.h"
 
 #include <assert.h>
-#include "GameConfig\Minecraft.spa.h"
-#include "..\MinecraftServer.h"
-#include "..\LocalPlayer.h"
-#include "..\..\Minecraft.World\ItemInstance.h"
-#include "..\..\Minecraft.World\MapItem.h"
-#include "..\..\Minecraft.World\Recipes.h"
-#include "..\..\Minecraft.World\Recipy.h"
-#include "..\..\Minecraft.World\Language.h"
-#include "..\..\Minecraft.World\StringHelpers.h"
-#include "..\..\Minecraft.World\AABB.h"
-#include "..\..\Minecraft.World\Vec3.h"
-#include "..\..\Minecraft.World\Level.h"
-#include "..\..\Minecraft.World\net.minecraft.world.level.tile.h"
-#include "..\MultiplayerLocalPlayer.h"
+#include "GameConfig/Minecraft.spa.h"
+#include "../MinecraftServer.h"
+#include "../LocalPlayer.h"
+#include "../../Minecraft.World/ItemInstance.h"
+#include "../../Minecraft.World/MapItem.h"
+#include "../../Minecraft.World/Recipes.h"
+#include "../../Minecraft.World/Recipy.h"
+#include "../../Minecraft.World/Language.h"
+#include "../../Minecraft.World/StringHelpers.h"
+#include "../../Minecraft.World/AABB.h"
+#include "../../Minecraft.World/Vec3.h"
+#include "../../Minecraft.World/Level.h"
+#include "../../Minecraft.World/net.minecraft.world.level.tile.h"
+#include "../MultiPlayerLocalPlayer.h"
 
-#include "..\ClientConnection.h"
-#include "..\User.h"
-#include "..\..\Minecraft.World\Socket.h"
-#include "..\KeyboardMouseInput.h"
-#include "..\..\Minecraft.World\ThreadName.h"
-#include "..\..\Minecraft.Client\StatsCounter.h"
-#include "..\ConnectScreen.h"
+#include "../ClientConnection.h"
+#include "../User.h"
+#include "../../Minecraft.World/Socket.h"
+#include "../KeyboardMouseInput.h"
+#include "../../Minecraft.World/ThreadName.h"
+#include "../../Minecraft.Client/StatsCounter.h"
+#include "../ConnectScreen.h"
 //#include "Social\SocialManager.h"
 //#include "Leaderboards\LeaderboardManager.h"
 //#include "XUI\XUI_Scene_Container.h"
 //#include "NetworkManager.h"
-#include "..\..\Minecraft.Client\Tesselator.h"
-#include "..\..\Minecraft.Client\Options.h"
-#include "Sentient\SentientManager.h"
-#include "..\..\Minecraft.World\IntCache.h"
-#include "..\Textures.h"
+#include "../../Minecraft.Client/Tesselator.h"
+#include "../../Minecraft.Client/Options.h"
+#include "Sentient/SentientManager.h"
+#include "../../Minecraft.World/IntCache.h"
+#include "../Textures.h"
 #include "Resource.h"
-#include "..\..\Minecraft.World\compression.h"
-#include "..\..\Minecraft.World\OldChunkStorage.h"
+#include "../../Minecraft.World/compression.h"
+#include "../../Minecraft.World/OldChunkStorage.h"
 
-#include "Network\WinsockNetLayer.h"
+#include "Network/WinsockNetLayer.h"
 
-#include "..\PlayerRenderer.h"
+#include "../PlayerRenderer.h"
 
 #include "Windows64_PostProcess.h"
 
@@ -1214,8 +1214,6 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	MSG msg = {0};
 	while( WM_QUIT != msg.message )
 	{
-		g_KBMInput.Tick();
-
 		while( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE ) )
 		{
 			TranslateMessage( &msg );
@@ -1223,6 +1221,8 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 			if (msg.message == WM_QUIT) break;
 		}
 		if (msg.message == WM_QUIT) break;
+
+		g_KBMInput.Tick();
 
 		RenderManager.StartFrame();
 #if 0

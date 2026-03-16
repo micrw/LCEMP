@@ -5,31 +5,33 @@
 #include "ServerPlayerGameMode.h"
 #include "PlayerList.h"
 #include "MinecraftServer.h"
-#include "..\Minecraft.World\net.minecraft.commands.h"
-#include "..\Minecraft.World\net.minecraft.network.h"
-#include "..\Minecraft.World\net.minecraft.world.entity.item.h"
-#include "..\Minecraft.World\net.minecraft.world.level.h"
-#include "..\Minecraft.World\net.minecraft.world.level.dimension.h"
-#include "..\Minecraft.World\net.minecraft.world.item.h"
-#include "..\Minecraft.World\net.minecraft.world.item.trading.h"
-#include "..\Minecraft.World\net.minecraft.world.inventory.h"
-#include "..\Minecraft.World\net.minecraft.world.level.tile.entity.h"
-#include "..\Minecraft.World\net.minecraft.world.level.saveddata.h"
-#include "..\Minecraft.World\net.minecraft.network.h"
-#include "..\Minecraft.World\net.minecraft.world.food.h"
-#include "..\Minecraft.World\AABB.h"
-#include "..\Minecraft.World\Pos.h"
-#include "..\Minecraft.World\SharedConstants.h"
-#include "..\Minecraft.World\Socket.h"
-#include "..\Minecraft.World\Achievements.h"
-#include "..\Minecraft.World\net.minecraft.h"
+#include "../Minecraft.World/net.minecraft.commands.h"
+#include "../Minecraft.World/net.minecraft.network.h"
+#include "../Minecraft.World/net.minecraft.world.entity.item.h"
+#include "../Minecraft.World/net.minecraft.world.level.h"
+#include "../Minecraft.World/net.minecraft.world.level.dimension.h"
+#include "../Minecraft.World/net.minecraft.world.item.h"
+#include "../Minecraft.World/net.minecraft.world.item.trading.h"
+#include "../Minecraft.World/net.minecraft.world.inventory.h"
+#include "../Minecraft.World/net.minecraft.world.level.tile.entity.h"
+#include "../Minecraft.World/net.minecraft.world.level.saveddata.h"
+#include "../Minecraft.World/net.minecraft.network.h"
+#include "../Minecraft.World/net.minecraft.world.food.h"
+#include "../Minecraft.World/AABB.h"
+
+bool g_voiceChatEnabled = true;
+#include "../Minecraft.World/Pos.h"
+#include "../Minecraft.World/SharedConstants.h"
+#include "../Minecraft.World/Socket.h"
+#include "../Minecraft.World/Achievements.h"
+#include "../Minecraft.World/net.minecraft.h"
 #include "EntityTracker.h"
 #include "ServerConnection.h"
-#include "..\Minecraft.World\GenericStats.h"
-#include "..\Minecraft.World\JavaMath.h"
+#include "../Minecraft.World/GenericStats.h"
+#include "../Minecraft.World/JavaMath.h"
 
 // 4J Added
-#include "..\Minecraft.World\net.minecraft.world.item.crafting.h"
+#include "../Minecraft.World/net.minecraft.world.item.crafting.h"
 #include "Options.h"
 
 Random PlayerConnection::random;
@@ -126,7 +128,7 @@ void PlayerConnection::disconnect(DisconnectPacket::eDisconnectReason reason)
 	send( shared_ptr<DisconnectPacket>( new DisconnectPacket(reason) ));
 	connection->sendAndQuit();
 	// 4J-PB - removed, since it needs to be localised in the language the client is in
-	//server->players->broadcastAll( shared_ptr<ChatPacket>( new ChatPacket(L"�e" + player->name + L" left the game.") ) );
+	//server->players->broadcastAll( shared_ptr<ChatPacket>( new ChatPacket(L"ï¿½e" + player->name + L" left the game.") ) );
 	if(getWasKicked())
 	{
 		server->getPlayers()->broadcastAll( shared_ptr<ChatPacket>( new ChatPacket(player->name, ChatPacket::e_ChatPlayerKickedFromGame) ) );
@@ -294,6 +296,13 @@ void PlayerConnection::handleMovePlayer(shared_ptr<MovePlayerPacket> packet)
 		double dist = xDist * xDist + yDist * yDist + zDist * zDist;
 
 		// 4J-PB - removing this one for now
+#ifdef _DEDICATED_SERVER
+		if (dist > 100.0f)
+		{
+			disconnect(DisconnectPacket::eDisconnect_MovedTooQuickly);
+			return;
+		}
+#else
 		/*if (dist > 100.0f)
 		{
 //            logger.warning(player->name + " moved too quickly!");
@@ -303,6 +312,7 @@ void PlayerConnection::handleMovePlayer(shared_ptr<MovePlayerPacket> packet)
 			return;
 		}
 		*/
+#endif
 
 		float r = 1 / 16.0f;
 		bool oldOk = level->getCubes(player, player->bb->copy()->shrink(r, r, r))->empty();
@@ -359,8 +369,11 @@ void PlayerConnection::handleMovePlayer(shared_ptr<MovePlayerPacket> packet)
 			return;
 		}
 		AABB *testBox = player->bb->copy()->grow(r, r, r)->expand(0, -0.55, 0);
-		// && server.level.getCubes(player, testBox).size() == 0
+#ifdef _DEDICATED_SERVER
+		if (!player->gameMode->isCreative() && !player->abilities.mayfly && !player->isAllowedToFly() && !level->containsAnyBlocks(testBox))
+#else
 		if (!server->isFlightAllowed() && !player->gameMode->isCreative() && !level->containsAnyBlocks(testBox) && !player->isAllowedToFly() )
+#endif
 		{
 			if (oyDist >= (-0.5f / 16.0f))
 			{
@@ -439,6 +452,12 @@ void PlayerConnection::handlePlayerAction(shared_ptr<PlayerActionPacket> packet)
 		{
 			return;
 		}
+#ifdef _DEDICATED_SERVER
+		if (y < 0)
+		{
+			return;
+		}
+#endif
 	}
 	Pos *spawnPos = level->getSharedSpawnPos();
 	int xd = (int) Mth::abs((float)(x - spawnPos->x));
@@ -575,7 +594,7 @@ void PlayerConnection::onDisconnect(DisconnectPacket::eDisconnectReason reason, 
 	if( done ) return;
 //    logger.info(player.name + " lost connection: " + reason);
 	// 4J-PB - removed, since it needs to be localised in the language the client is in
-	//server->players->broadcastAll( shared_ptr<ChatPacket>( new ChatPacket(L"�e" + player->name + L" left the game.") ) );
+	//server->players->broadcastAll( shared_ptr<ChatPacket>( new ChatPacket(L"ï¿½e" + player->name + L" left the game.") ) );
 	if(getWasKicked())
 	{
 		server->getPlayers()->broadcastAll( shared_ptr<ChatPacket>( new ChatPacket(player->name, ChatPacket::e_ChatPlayerKickedFromGame) ) );
@@ -746,13 +765,13 @@ int PlayerConnection::countDelayedPackets()
 void PlayerConnection::info(const wstring& string)
 {
 	// 4J-PB - removed, since it needs to be localised in the language the client is in
-	//send( shared_ptr<ChatPacket>( new ChatPacket(L"�7" + string) ) );
+	//send( shared_ptr<ChatPacket>( new ChatPacket(L"ï¿½7" + string) ) );
 }
 
 void PlayerConnection::warn(const wstring& string)
 {
 	// 4J-PB - removed, since it needs to be localised in the language the client is in
-	//send( shared_ptr<ChatPacket>( new ChatPacket(L"�9" + string) ) );
+	//send( shared_ptr<ChatPacket>( new ChatPacket(L"ï¿½9" + string) ) );
 }
 
 wstring PlayerConnection::getConsoleName()
@@ -769,17 +788,12 @@ void PlayerConnection::handleInteract(shared_ptr<InteractPacket> packet)
 	// 4J Stu - If the client says that we hit something, then agree with it. The canSee can fail here as it checks
 	// a ray from head->head, but we may actually be looking at a different part of the entity that can be seen
 	// even though the ray is blocked.
-	if (target != NULL) // && player->canSee(target) && player->distanceToSqr(target) < 6 * 6)
+	if (target != NULL)
 	{
-		//boole canSee = player->canSee(target);
-		//double maxDist = 6 * 6;
-		//if (!canSee)
-		//{
-		//	maxDist = 3 * 3;
-		//}
-
-		//if (player->distanceToSqr(target) < maxDist)
-		//{
+#ifdef _DEDICATED_SERVER
+		if (player->distanceToSqr(target) > 6.0 * 6.0)
+			return;
+#endif
 			if (packet->action == InteractPacket::INTERACT)
 			{
 				player->interact(target);
@@ -788,7 +802,6 @@ void PlayerConnection::handleInteract(shared_ptr<InteractPacket> packet)
 			{
 				player->attack(target);
 			}
-		//}
 	}
 
 }
@@ -1096,6 +1109,9 @@ void PlayerConnection::handleContainerClose(shared_ptr<ContainerClosePacket> pac
 #ifndef _CONTENT_PACKAGE	
 void PlayerConnection::handleContainerSetSlot(shared_ptr<ContainerSetSlotPacket> packet)
 {
+#ifdef _DEDICATED_SERVER
+	return;
+#else
 	if (packet->containerId == AbstractContainerMenu::CONTAINER_ID_CARRIED )
 	{
         player->inventory->setCarried(packet->item);
@@ -1127,6 +1143,7 @@ void PlayerConnection::handleContainerSetSlot(shared_ptr<ContainerSetSlotPacket>
 			player->ignoreSlotUpdateHack = false;
         }
     }
+#endif
 }
 #endif
 
@@ -1217,7 +1234,11 @@ void PlayerConnection::handleSetCreativeModeSlot(shared_ptr<SetCreativeModeSlotP
 
 		bool validSlot = (packet->slotNum >= InventoryMenu::CRAFT_SLOT_START && packet->slotNum < (InventoryMenu::USE_ROW_SLOT_START + Inventory::getSelectionSize()));
 		bool validItem = item == NULL || (item->id < Item::items.length && item->id >= 0 && Item::items[item->id] != NULL);
+#ifdef _DEDICATED_SERVER
+		bool validData = item == NULL || (item->getAuxValue() >= 0 && item->count > 0 && item->count <= item->getItem()->getMaxStackSize());
+#else
 		bool validData = item == NULL || (item->getAuxValue() >= 0 && item->count > 0 && item->count <= 64);
+#endif
 
 		if (validSlot && validItem && validData)
 		{
@@ -1273,6 +1294,13 @@ void PlayerConnection::handleContainerAck(shared_ptr<ContainerAckPacket> packet)
 void PlayerConnection::handleSignUpdate(shared_ptr<SignUpdatePacket> packet)
 {
 	app.DebugPrintf("PlayerConnection::handleSignUpdate\n");
+
+#ifdef _DEDICATED_SERVER
+	double dx = player->x - (packet->x + 0.5);
+	double dy = player->y - (packet->y + 0.5) + 1.5;
+	double dz = player->z - (packet->z + 0.5);
+	if (dx * dx + dy * dy + dz * dz > 8 * 8) return;
+#endif
 
 	ServerLevel *level = server->getLevel(player->dimension);
 	if (level->hasChunkAt(packet->x, packet->y, packet->z))
@@ -1345,6 +1373,13 @@ void PlayerConnection::handlePlayerInfo(shared_ptr<PlayerInfoPacket> packet)
 			bool cheats = app.GetGameHostOption(eGameHostOption_CheatsEnabled) != 0;
 			if(serverPlayer == player)
 			{
+#ifdef _DEDICATED_SERVER
+				if(!cheats)
+				{
+					server->getPlayers()->broadcastAll( shared_ptr<PlayerInfoPacket>( new PlayerInfoPacket( serverPlayer ) ) );
+					return;
+				}
+#endif
 				GameType *gameType = Player::getPlayerGamePrivilege(packet->m_playerPrivileges,Player::ePlayerGamePrivilege_CreativeMode) ? GameType::CREATIVE : GameType::SURVIVAL;
 				gameType = LevelSettings::validateGameType(gameType->getId());
 				if (serverPlayer->gameMode->getGameModeForPlayer() != gameType)
@@ -1418,7 +1453,7 @@ bool PlayerConnection::isServerPacketListener()
 
 void PlayerConnection::handlePlayerAbilities(shared_ptr<PlayerAbilitiesPacket> playerAbilitiesPacket)
 {
-	player->abilities.flying = playerAbilitiesPacket->isFlying() && player->abilities.mayfly;
+	player->abilities.flying = playerAbilitiesPacket->isFlying() && (player->abilities.mayfly || player->isAllowedToFly());
 }
 
 //void handleChatAutoComplete(ChatAutoCompletePacket packet) {
@@ -1440,6 +1475,29 @@ void PlayerConnection::handlePlayerAbilities(shared_ptr<PlayerAbilitiesPacket> p
 
 void PlayerConnection::handleCustomPayload(shared_ptr<CustomPayloadPacket> customPayloadPacket)
 {
+	if (customPayloadPacket->identifier == L"MC|Voice")
+	{
+		extern bool g_voiceChatEnabled;
+		if (!g_voiceChatEnabled) return;
+		if (!customPayloadPacket->data.data || customPayloadPacket->data.length < 1 || customPayloadPacket->data.length > 2048) return;
+
+		BYTE senderSmallId = player->connection->connection->getSocket()->getSmallId();
+
+		int newLen = 1 + customPayloadPacket->data.length;
+		byteArray newData(newLen);
+		newData.data[0] = (byte)senderSmallId;
+		memcpy(newData.data + 1, customPayloadPacket->data.data, customPayloadPacket->data.length);
+
+		shared_ptr<CustomPayloadPacket> relay(new CustomPayloadPacket(L"MC|Voice", newData));
+
+		vector<shared_ptr<ServerPlayer>>& pl = server->getPlayers()->players;
+		for (unsigned int i = 0; i < pl.size(); i++)
+		{
+			if (pl[i] && pl[i] != player && pl[i]->connection)
+				pl[i]->connection->send(relay);
+		}
+		return;
+	}
 #if 0
 	if (CustomPayloadPacket.CUSTOM_BOOK_PACKET.equals(customPayloadPacket.identifier))
 	{
@@ -1518,11 +1576,14 @@ void PlayerConnection::handleCustomPayload(shared_ptr<CustomPayloadPacket> custo
 
 void PlayerConnection::handleDebugOptions(shared_ptr<DebugOptionsPacket> packet)
 {
-	//Player player = dynamic_pointer_cast<Player>( player->shared_from_this() );
+#ifdef _DEDICATED_SERVER
+	return;
+#else
 	if(app.DebugSettingsOn())
 	{
 		player->SetDebugOptions(packet->m_uiVal);
 	}
+#endif
 }
 
 void PlayerConnection::handleCraftItem(shared_ptr<CraftItemPacket> packet)
@@ -1541,16 +1602,35 @@ void PlayerConnection::handleCraftItem(shared_ptr<CraftItemPacket> packet)
 
 	if(app.DebugSettingsOn() && (player->GetDebugOptions()&(1L<<eDebugSetting_CraftAnything)))
 	{
+#ifdef _DEDICATED_SERVER
+		return;
+#else
 		pTempItemInst->onCraftedBy(player->level, dynamic_pointer_cast<Player>( player->shared_from_this() ), pTempItemInst->count );
 		if(player->inventory->add(pTempItemInst)==false )
 		{
 			// no room in inventory, so throw it down
 			player->drop(pTempItemInst);
 		}
+#endif
 	}
 	else
 	{
 
+#ifdef _DEDICATED_SERVER
+	for(int i=0;i<pRecipeIngredientsRequired[iRecipe].iIngC;i++)
+	{
+		for(int j=0;j<pRecipeIngredientsRequired[iRecipe].iIngValA[i];j++)
+		{
+			shared_ptr<ItemInstance> check = nullptr;
+			if(pRecipeIngredientsRequired[iRecipe].iIngAuxValA[i]!=Recipes::ANY_AUX_VALUE)
+				check = player->inventory->getResourceItem( pRecipeIngredientsRequired[iRecipe].iIngIDA[i],pRecipeIngredientsRequired[iRecipe].iIngAuxValA[i] );
+			else
+				check = player->inventory->getResourceItem( pRecipeIngredientsRequired[iRecipe].iIngIDA[i] );
+			if(check == nullptr || check->count <= 0)
+				return;
+		}
+	}
+#endif
 	
 	// TODO 4J Stu - Assume at the moment that the client can work this out for us...
 	//if(pRecipeIngredientsRequired[iRecipe].bCanMake) 
@@ -1642,7 +1722,8 @@ void PlayerConnection::handleTradeItem(shared_ptr<TradeItemPacket> packet)
 {
 	if (player->containerMenu->containerId == packet->containerId)
 	{
-		MerchantMenu *menu = (MerchantMenu *)player->containerMenu;
+		MerchantMenu *menu = dynamic_cast<MerchantMenu *>(player->containerMenu);
+		if (!menu) return;
 
 		MerchantRecipeList *offers = menu->getMerchant()->getOffers(player);
 

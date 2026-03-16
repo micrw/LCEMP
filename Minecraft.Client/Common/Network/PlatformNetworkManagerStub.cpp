@@ -1,12 +1,12 @@
 #include "stdafx.h"	
-#include "..\..\..\Minecraft.World\Socket.h"
-#include "..\..\..\Minecraft.World\StringHelpers.h"
+#include "../../../Minecraft.World/Socket.h"
+#include "../../../Minecraft.World/StringHelpers.h"
 #include "PlatformNetworkManagerStub.h"
-#include "..\..\Xbox\Network\NetworkPlayerXbox.h"
+#include "../../Xbox/Network/NetworkPlayerXbox.h"
 #ifdef _WINDOWS64
-#include "..\..\Windows64\Network\WinsockNetLayer.h"
-#include "..\..\Minecraft.h"
-#include "..\..\User.h"
+#include "../../Windows64/Network/WinsockNetLayer.h"
+#include "../../Minecraft.h"
+#include "../../User.h"
 #endif
 
 CPlatformNetworkManagerStub *g_pPlatformNetworkManager;
@@ -415,7 +415,6 @@ void CPlatformNetworkManagerStub::HostGame(int localUsersMask, bool bOnlineGame,
 	wcscpy_s(IQNet::m_player[0].m_gamertag, 32, g_Win64UsernameW);
 #endif
 #endif
-
 	_HostGame( localUsersMask, publicSlots, privateSlots );
 
 #ifdef _WINDOWS64
@@ -423,9 +422,17 @@ void CPlatformNetworkManagerStub::HostGame(int localUsersMask, bool bOnlineGame,
 	if (!WinsockNetLayer::IsActive())
 		WinsockNetLayer::HostGame(port);
 
+#ifdef _DEDICATED_SERVER
+	extern bool g_ServerAdvertiseLAN;
+	if (g_ServerAdvertiseLAN)
+	{
+#endif
 	const wchar_t *hostName = IQNet::m_player[0].m_gamertag;
 	unsigned int settings = app.GetGameHostOption(eGameHostOption_All);
 	WinsockNetLayer::StartAdvertising(port, hostName, settings, 0, 0, MINECRAFT_NET_VERSION);
+#ifdef _DEDICATED_SERVER
+	}
+#endif
 #endif
 }
 

@@ -996,7 +996,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <Optimization>Disabled</Optimization>
+      <Optimization>MinSpace</Optimization>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderOutputFile>$(OutDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>

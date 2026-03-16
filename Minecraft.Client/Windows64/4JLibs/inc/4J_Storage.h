@@ -1,6 +1,9 @@
 #pragma once
 #include <vector>
 //#include <xtms.h>
+#ifdef __linux__
+#include "extraX64.h"
+#endif
 class C4JStringTable;
 
 #define MAX_DISPLAYNAME_LENGTH 128 // CELL_SAVEDATA_SYSP_SUBTITLE_SIZE on PS3

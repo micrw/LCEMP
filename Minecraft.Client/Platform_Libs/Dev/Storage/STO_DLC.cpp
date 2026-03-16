@@ -25,6 +25,13 @@ SOFTWARE.
 #include "STO_DLC.h"
 #include "STO_Main.h"
 
+#ifdef __linux__
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <string.h>
+#endif
+
 XCONTENT_DATA &CDLC::GetDLC(DWORD dw)
 {
     return m_vInstalledDLCs[dw];
@@ -62,6 +69,48 @@ C4JStorage::EDLCStatus CDLC::GetInstalledDLC(int iPad, int (*Func)(LPVOID, int, 
     m_pInstalledDLCParam = lpParam;
     m_iHasNewInstalledDLCs = true;
 
+#ifdef __linux__
+    const char *dlcDir = NULL;
+    struct stat stDir;
+    if (stat("Windows64Media/DLC", &stDir) == 0 && S_ISDIR(stDir.st_mode))
+    {
+        dlcDir = "Windows64Media/DLC";
+    }
+    else if (stat("Windows64/DLC", &stDir) == 0 && S_ISDIR(stDir.st_mode))
+    {
+        dlcDir = "Windows64/DLC";
+    }
+
+    if (!dlcDir)
+    {
+        InternalStorageManager.DebugPrintf("No DLC directory, can't have any DLC installed\n");
+        return C4JStorage::EDLC_Error;
+    }
+
+    DIR *dir = opendir(dlcDir);
+    if (dir)
+    {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL)
+        {
+            if (entry->d_name[0] == '.')
+                continue;
+            char fullPath[512];
+            snprintf(fullPath, sizeof(fullPath), "%s/%s", dlcDir, entry->d_name);
+            struct stat stEntry;
+            if (stat(fullPath, &stEntry) == 0 && S_ISDIR(stEntry.st_mode))
+            {
+                XCONTENT_DATA data;
+                snprintf(data.szFileName, sizeof(data.szFileName), "%s/%s", dlcDir, entry->d_name);
+                swprintf(data.szDisplayName, 256, L"%s", entry->d_name);
+                data.DeviceID = 0;
+                data.dwContentType = 0;
+                AddInstalled(&data);
+            }
+        }
+        closedir(dir);
+    }
+#else
     bool ret = false;
     DWORD atts = GetFileAttributesA("Windows64Media/DLC");
     if (atts == -1)
@@ -119,6 +168,7 @@ C4JStorage::EDLCStatus CDLC::GetInstalledDLC(int iPad, int (*Func)(LPVOID, int, 
         } while (FindNextFileA(hFindFile, &hFind));
         FindClose(hFindFile);
     }
+#endif
 
     return C4JStorage::EDLC_Idle;
 }
@@ -175,6 +225,27 @@ DWORD CDLC::UnmountInstalledDLC(LPCSTR szMountDrive)
 
 void CDLC::GetMountedDLCFileList(const char *szMountDrive, std::vector<std::string> &fileList)
 {
+#ifdef __linux__
+    const char *basePath = m_vInstalledDLCs[m_uiCurrentMappedDLC].szFileName;
+    DIR *dir = opendir(basePath);
+    if (dir)
+    {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL)
+        {
+            if (entry->d_name[0] == '.')
+                continue;
+            char fullPath[256];
+            snprintf(fullPath, sizeof(fullPath), "%s/%s", basePath, entry->d_name);
+            struct stat st;
+            if (stat(fullPath, &st) == 0 && !S_ISDIR(st.st_mode))
+            {
+                fileList.push_back(fullPath);
+            }
+        }
+        closedir(dir);
+    }
+#else
     char *dlcdirPath = new char[256];
     sprintf(dlcdirPath, "%s/*", m_vInstalledDLCs[m_uiCurrentMappedDLC].szFileName);
 
@@ -195,6 +266,7 @@ void CDLC::GetMountedDLCFileList(const char *szMountDrive, std::vector<std::stri
         FindClose(hFind);
     }
     delete[] dlcdirPath;
+#endif
 }
 
 std::string CDLC::GetMountedPath(std::string szMount)

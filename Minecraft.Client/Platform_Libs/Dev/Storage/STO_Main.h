@@ -46,5 +46,4 @@ public:
     bool m_bHasCRCTable;
 };
 
-// Singleton
 extern CStorage InternalStorageManager;

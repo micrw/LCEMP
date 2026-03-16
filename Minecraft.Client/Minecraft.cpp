@@ -36,45 +36,48 @@
 #ifdef _WINDOWS64
 #include "KeyboardMouseInput.h"
 #endif
+#if defined(_WINDOWS64) && !defined(_DEDICATED_SERVER)
+#include "Windows64/Audio/VoiceChat.h"
+#endif
 
-#include "..\Minecraft.World\MobEffect.h"
-#include "..\Minecraft.World\Difficulty.h"
-#include "..\Minecraft.World\net.minecraft.world.level.h"
-#include "..\Minecraft.World\net.minecraft.world.entity.h"
-#include "..\Minecraft.World\net.minecraft.world.entity.player.h"
-#include "..\Minecraft.World\net.minecraft.world.entity.item.h"
-#include "..\Minecraft.World\net.minecraft.world.phys.h"
-#include "..\Minecraft.World\File.h"
-#include "..\Minecraft.World\net.minecraft.world.level.storage.h"
-#include "..\Minecraft.World\net.minecraft.h"
-#include "..\Minecraft.World\net.minecraft.stats.h"
-#include "..\Minecraft.World\System.h"
-#include "..\Minecraft.World\ByteBuffer.h"
-#include "..\Minecraft.World\net.minecraft.world.level.tile.h"
-#include "..\Minecraft.World\net.minecraft.world.level.chunk.h"
-#include "..\Minecraft.World\net.minecraft.world.level.dimension.h"
-#include "..\Minecraft.World\net.minecraft.world.item.h"
-#include "..\Minecraft.World\Minecraft.World.h"
+#include "../Minecraft.World/MobEffect.h"
+#include "../Minecraft.World/Difficulty.h"
+#include "../Minecraft.World/net.minecraft.world.level.h"
+#include "../Minecraft.World/net.minecraft.world.entity.h"
+#include "../Minecraft.World/net.minecraft.world.entity.player.h"
+#include "../Minecraft.World/net.minecraft.world.entity.item.h"
+#include "../Minecraft.World/net.minecraft.world.phys.h"
+#include "../Minecraft.World/File.h"
+#include "../Minecraft.World/net.minecraft.world.level.storage.h"
+#include "../Minecraft.World/net.minecraft.h"
+#include "../Minecraft.World/net.minecraft.stats.h"
+#include "../Minecraft.World/System.h"
+#include "../Minecraft.World/ByteBuffer.h"
+#include "../Minecraft.World/net.minecraft.world.level.tile.h"
+#include "../Minecraft.World/net.minecraft.world.level.chunk.h"
+#include "../Minecraft.World/net.minecraft.world.level.dimension.h"
+#include "../Minecraft.World/net.minecraft.world.item.h"
+#include "../Minecraft.World/Minecraft.World.h"
 #include "ClientConnection.h"
-#include "..\Minecraft.World\HellRandomLevelSource.h"
-#include "..\Minecraft.World\net.minecraft.world.entity.animal.h"
-#include "..\Minecraft.World\net.minecraft.world.entity.monster.h"
-#include "..\Minecraft.World\StrongholdFeature.h"
-#include "..\Minecraft.World\IntCache.h"
-#include "..\Minecraft.World\Villager.h"
-#include "..\Minecraft.World\EntityIO.h" // for mobs
-#include "..\Minecraft.World\SparseLightStorage.h"
-#include "..\Minecraft.World\SparseDataStorage.h"
+#include "../Minecraft.World/HellRandomLevelSource.h"
+#include "../Minecraft.World/net.minecraft.world.entity.animal.h"
+#include "../Minecraft.World/net.minecraft.world.entity.monster.h"
+#include "../Minecraft.World/StrongholdFeature.h"
+#include "../Minecraft.World/IntCache.h"
+#include "../Minecraft.World/Villager.h"
+#include "../Minecraft.World/EntityIO.h" // for mobs
+#include "../Minecraft.World/SparseLightStorage.h"
+#include "../Minecraft.World/SparseDataStorage.h"
 #include "TextureManager.h"
 #ifdef _XBOX
-#include "Xbox\Network\NetworkPlayerXbox.h"
+#include "Xbox/Network/NetworkPlayerXbox.h"
 #endif
-#include "Common\UI\IUIScene_CreativeMenu.h"
-#include "Common\UI\UIFontData.h"
+#include "Common/UI/IUIScene_CreativeMenu.h"
+#include "Common/UI/UIFontData.h"
 #include "DLCTexturePack.h"
 
 #ifdef __ORBIS__
-#include "Orbis\Network\PsPlusUpsellWrapper_Orbis.h"
+#include "Orbis/Network/PsPlusUpsellWrapper_Orbis.h"
 #endif
 
 // 4J Turning this on will change the graph at the bottom of the debug overlay to show the number of packets of each type added per fram
@@ -1503,7 +1506,7 @@ void Minecraft::run_middle()
 							}
 						}
 
-						if(g_KBMInput.IsKeyPressed(KeyboardMouseInput::KEY_PAUSE))
+						if(g_KBMInput.IsKeyPressed(KeyboardMouseInput::KEY_PAUSE) && !ui.GetMenuDisplayed(i))
 						{
 							localplayers[i]->ullButtonsPressed|=1LL<<MINECRAFT_ACTION_PAUSEMENU;
 							app.DebugPrintf("PAUSE PRESSED (keyboard) - ipad = %d\n",i);
@@ -1785,6 +1788,9 @@ void Minecraft::run_middle()
 				if(i!=0)
 				{
 					InputManager.Tick();
+#ifdef _WINDOWS64
+					g_KBMInput.Tick();
+#endif
 					app.HandleButtonPresses();
 				}
 
@@ -3931,6 +3937,18 @@ void Minecraft::tick(bool bFirst, bool bUpdateTextures)
 
 		// 4J Stu - Keep ticking the connections if paused so that they don't time out
 		if( pause ) tickAllConnections();
+#if defined(_WINDOWS64) && !defined(_DEDICATED_SERVER)
+		if (localplayers[0] && localplayers[0]->connection)
+		{
+			if (VoiceChat::isEnabled())
+				VoiceChat::tick();
+		}
+		else if (VoiceChat::isEnabled())
+		{
+			VoiceChat::setEnabled(false);
+			VoiceChat::shutdown();
+		}
+#endif
 		// player->tick();
 	}
 #ifdef __PS3__

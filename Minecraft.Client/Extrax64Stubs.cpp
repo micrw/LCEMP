@@ -4,33 +4,36 @@
 #endif // __PS3__
 
 #ifdef __PS3__
-#include "PS3\Sentient\SentientManager.h"
+#include "PS3/Sentient/SentientManager.h"
 #include "StatsCounter.h"
-#include "PS3\Social\SocialManager.h"
+#include "PS3/Social/SocialManager.h"
 #include <libsn.h>
 #include <libsntuner.h>
 #elif defined _DURANGO
-#include "Durango\Sentient\SentientManager.h"
+#include "Durango/Sentient/SentientManager.h"
 #include "StatsCounter.h"
-#include "Durango\Social\SocialManager.h"
-#include "Durango\Sentient\DynamicConfigurations.h"
-#include "Durango\DurangoExtras\xcompress.h"
+#include "Durango/Social/SocialManager.h"
+#include "Durango/Sentient/DynamicConfigurations.h"
+#include "Durango/DurangoExtras/xcompress.h"
 #elif defined _WINDOWS64
-#include "Windows64\Sentient\SentientManager.h"
+#include "Windows64/Sentient/SentientManager.h"
 #include "StatsCounter.h"
-#include "Windows64\Social\SocialManager.h"
-#include "Windows64\Sentient\DynamicConfigurations.h"
+#include "Windows64/Social/SocialManager.h"
+#include "Windows64/Sentient/DynamicConfigurations.h"
+#ifndef _DEDICATED_SERVER
+#include "Windows64/Audio/VoiceChat.h"
+#endif
 #elif defined __PSVITA__
-#include "PSVita\Sentient\SentientManager.h"
+#include "PSVita/Sentient/SentientManager.h"
 #include "StatsCounter.h"
-#include "PSVita\Social\SocialManager.h"
-#include "PSVita\Sentient\DynamicConfigurations.h"
+#include "PSVita/Social/SocialManager.h"
+#include "PSVita/Sentient/DynamicConfigurations.h"
 #include <libperf.h>
 #else
-#include "Orbis\Sentient\SentientManager.h"
+#include "Orbis/Sentient/SentientManager.h"
 #include "StatsCounter.h"
-#include "Orbis\Social\SocialManager.h"
-#include "Orbis\Sentient\DynamicConfigurations.h"
+#include "Orbis/Social/SocialManager.h"
+#include "Orbis/Sentient/DynamicConfigurations.h"
 #include <perf.h>
 #endif
 
@@ -185,7 +188,7 @@ D3DXVECTOR3::D3DXVECTOR3() {}
 D3DXVECTOR3::D3DXVECTOR3(float x,float y,float z) : x(x), y(y), z(z) {}
 D3DXVECTOR3& D3DXVECTOR3::operator += ( CONST D3DXVECTOR3& add ) { x += add.x; y += add.y; z += add.z; return *this; }
 
-#include "Windows64\Network\WinsockNetLayer.h"
+#include "Windows64/Network/WinsockNetLayer.h"
 
 BYTE IQNetPlayer::GetSmallId() { return m_smallId; }
 void IQNetPlayer::SendData(IQNetPlayer *player, const void *pvData, DWORD dwDataSize, DWORD dwFlags)
@@ -288,9 +291,21 @@ static void Win64_BuildSplitNameW(int iPad, wchar_t *outName, int outSize)
 
 LPCWSTR IQNetPlayer::GetGamertag() { return m_gamertag; }
 int IQNetPlayer::GetSessionIndex() { return m_smallId; }
-bool IQNetPlayer::IsTalking() { return false; }
+bool IQNetPlayer::IsTalking() {
+#if defined(_WINDOWS64) && !defined(_DEDICATED_SERVER)
+	return VoiceChat::isTalking(m_smallId);
+#else
+	return false;
+#endif
+}
 bool IQNetPlayer::IsMutedByLocalUser(DWORD dwUserIndex) { return false; }
-bool IQNetPlayer::HasVoice() { return false; }
+bool IQNetPlayer::HasVoice() {
+#if defined(_WINDOWS64) && !defined(_DEDICATED_SERVER)
+	return VoiceChat::hasVoice();
+#else
+	return false;
+#endif
+}
 bool IQNetPlayer::HasCamera() { return false; }
 int IQNetPlayer::GetUserIndex() { return this - &IQNet::m_player[0]; }
 void IQNetPlayer::SetCustomDataValue(ULONG_PTR ulpCustomDataValue) {

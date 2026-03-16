@@ -175,25 +175,21 @@ bool C4JStorage::EnoughSpaceForAMinSaveGame()
 
 void C4JStorage::SetMaxSaves(int iMaxC)
 {
-    // Windows64: no limit enforced, but store for compatibility
     (void)iMaxC;
 }
 
 void C4JStorage::SetIncompleteSaveCallback(void (*Func)(LPVOID, const ESaveIncompleteType, int blocksRequired), LPVOID param)
 {
-    // Windows64: local filesystem, no incomplete-save recovery needed
     (void)Func;
     (void)param;
 }
 
 void C4JStorage::ContinueIncompleteOperation()
 {
-    // Windows64: no-op (saves complete synchronously)
 }
 
 C4JStorage::ESaveGameState C4JStorage::GetSaveState()
 {
-    // Windows64: saves are synchronous, always idle
     return C4JStorage::ESaveGame_Idle;
 }
 

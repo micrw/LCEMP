@@ -1,8 +1,25 @@
 #include "stdafx.h"
 #include "KeyboardMouseInput.h"
+#include "Windows64/KBMConfig.h"
 #include <cmath>
 
 KeyboardMouseInput g_KBMInput;
+
+int KeyboardMouseInput::KEY_FORWARD = 'W';
+int KeyboardMouseInput::KEY_BACKWARD = 'S';
+int KeyboardMouseInput::KEY_LEFT = 'A';
+int KeyboardMouseInput::KEY_RIGHT = 'D';
+int KeyboardMouseInput::KEY_JUMP = VK_SPACE;
+int KeyboardMouseInput::KEY_SNEAK = VK_LSHIFT;
+int KeyboardMouseInput::KEY_SPRINT = VK_LCONTROL;
+int KeyboardMouseInput::KEY_INVENTORY = 'E';
+int KeyboardMouseInput::KEY_DROP = 'Q';
+int KeyboardMouseInput::KEY_CRAFTING = VK_TAB;
+int KeyboardMouseInput::KEY_CONFIRM = VK_RETURN;
+int KeyboardMouseInput::KEY_PAUSE = VK_ESCAPE;
+int KeyboardMouseInput::KEY_THIRD_PERSON = VK_F5;
+int KeyboardMouseInput::KEY_DEBUG_INFO = VK_F3;
+int KeyboardMouseInput::KEY_VOICE = 'V';
 
 extern HWND g_hWnd;
 
@@ -38,6 +55,7 @@ void KeyboardMouseInput::Init()
 	m_hasInput = false;
 	m_kbmActive = true;
 	m_screenWantsCursorHidden = false;
+	m_hadRawMouseInput = false;
 
 	RAWINPUTDEVICE rid;
 	rid.usUsagePage = 0x01; // HID_USAGE_PAGE_GENERIC
@@ -68,6 +86,7 @@ void KeyboardMouseInput::ClearAllState()
 	m_mouseDeltaAccumY = 0;
 	m_mouseWheel = 0;
 	m_mouseWheelAccum = 0;
+	m_hadRawMouseInput = false;
 }
 
 void KeyboardMouseInput::Tick()
@@ -93,7 +112,8 @@ void KeyboardMouseInput::Tick()
 	m_mouseWheel = m_mouseWheelAccum;
 	m_mouseWheelAccum = 0;
 
-	m_hasInput = (m_mouseDeltaX != 0 || m_mouseDeltaY != 0 || m_mouseWheel != 0);
+	m_hasInput = (m_mouseDeltaX != 0 || m_mouseDeltaY != 0 || m_mouseWheel != 0 || m_hadRawMouseInput);
+	m_hadRawMouseInput = false;
 	if (!m_hasInput)
 	{
 		for (int i = 0; i < MAX_KEYS; i++)
@@ -176,6 +196,7 @@ void KeyboardMouseInput::OnRawMouseDelta(int dx, int dy)
 {
 	m_mouseDeltaAccumX += dx;
 	m_mouseDeltaAccumY += dy;
+	m_hadRawMouseInput = true;
 }
 
 bool KeyboardMouseInput::IsKeyDown(int vkCode) const

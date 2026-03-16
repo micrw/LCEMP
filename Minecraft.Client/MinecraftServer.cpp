@@ -14,49 +14,49 @@
 #include "Settings.h"
 #include "ServerChunkCache.h"
 #include "ServerLevelListener.h"
-#include "..\Minecraft.World\AABB.h"
-#include "..\Minecraft.World\Vec3.h"
-#include "..\Minecraft.World\net.minecraft.network.h"
-#include "..\Minecraft.World\net.minecraft.world.level.dimension.h"
-#include "..\Minecraft.World\net.minecraft.world.level.storage.h"
-#include "..\Minecraft.World\net.minecraft.world.h"
-#include "..\Minecraft.World\net.minecraft.world.level.h"
-#include "..\Minecraft.World\net.minecraft.world.level.tile.h"
-#include "..\Minecraft.World\Pos.h"
-#include "..\Minecraft.World\System.h"
-#include "..\Minecraft.World\StringHelpers.h"
+#include "../Minecraft.World/AABB.h"
+#include "../Minecraft.World/Vec3.h"
+#include "../Minecraft.World/net.minecraft.network.h"
+#include "../Minecraft.World/net.minecraft.world.level.dimension.h"
+#include "../Minecraft.World/net.minecraft.world.level.storage.h"
+#include "../Minecraft.World/net.minecraft.world.h"
+#include "../Minecraft.World/net.minecraft.world.level.h"
+#include "../Minecraft.World/net.minecraft.world.level.tile.h"
+#include "../Minecraft.World/Pos.h"
+#include "../Minecraft.World/System.h"
+#include "../Minecraft.World/StringHelpers.h"
 #ifdef SPLIT_SAVES
-#include "..\Minecraft.World\ConsoleSaveFileSplit.h"
+#include "../Minecraft.World/ConsoleSaveFileSplit.h"
 #endif
-#include "..\Minecraft.World\ConsoleSaveFileOriginal.h"
-#include "..\Minecraft.World\Socket.h"
-#include "..\Minecraft.World\net.minecraft.world.entity.h"
+#include "../Minecraft.World/ConsoleSaveFileOriginal.h"
+#include "../Minecraft.World/Socket.h"
+#include "../Minecraft.World/net.minecraft.world.entity.h"
 #include "ProgressRenderer.h"
 #include "ServerPlayer.h"
 #include "PlayerConnection.h"
 #include "GameRenderer.h"
 #ifdef _WINDOWS64
-#include "Windows64\Network\WinsockNetLayer.h"
+#include "Windows64/Network/WinsockNetLayer.h"
 #endif
-#include "..\Minecraft.World\ThreadName.h"
-#include "..\Minecraft.World\IntCache.h"
-#include "..\Minecraft.World\CompressedTileStorage.h"
-#include "..\Minecraft.World\SparseLightStorage.h"
-#include "..\Minecraft.World\SparseDataStorage.h"
-#include "..\Minecraft.World\compression.h"
+#include "../Minecraft.World/ThreadName.h"
+#include "../Minecraft.World/IntCache.h"
+#include "../Minecraft.World/CompressedTileStorage.h"
+#include "../Minecraft.World/SparseLightStorage.h"
+#include "../Minecraft.World/SparseDataStorage.h"
+#include "../Minecraft.World/compression.h"
 #ifdef _XBOX
-#include "Common\XUI\XUI_DebugSetCamera.h"
+#include "Common/XUI/XUI_DebugSetCamera.h"
 #endif
-#include "PS3\PS3Extras\ShutdownManager.h"
+#include "PS3/PS3Extras/ShutdownManager.h"
 #include "ServerCommandDispatcher.h"
 
 #ifdef WITH_SERVER_CODE
-#include "..\Minecraft.Server\Commands\ServerCommands.h"
+#include "../Minecraft.Server/Commands/ServerCommands.h"
 #endif
 
-#include "..\Minecraft.World\BiomeSource.h"
+#include "../Minecraft.World/BiomeSource.h"
 #include "PlayerChunkMap.h"
-#include "Common\Telemetry\TelemetryManager.h"
+#include "Common/Telemetry/TelemetryManager.h"
 
 #define DEBUG_SERVER_DONT_SPAWN_MOBS 0
 
@@ -156,7 +156,7 @@ bool MinecraftServer::initServer(__int64 seed, NetworkGameInitData *initData, DW
         //localIp = settings->getString(L"server-ip", L"");
         //onlineMode = settings->getBoolean(L"online-mode", true);
 		//motd = settings->getString(L"motd", L"A Minecraft Server");
-        //motd.replace('�', '$');
+        //motd.replace('ï¿½', '$');
 
         setAnimals(settings->getBoolean(L"spawn-animals", true));
 		setNpcsEnabled(settings->getBoolean(L"spawn-npcs", true));
@@ -607,6 +607,7 @@ bool MinecraftServer::loadLevel(LevelStorageSource *storageSource, const wstring
 
 			int twoRPlusOne = r*2 + 1;
 			int total = twoRPlusOne * twoRPlusOne;
+			app.DebugPrintf("Chunk generation starting for level %d, r=%d, total=%d chunks", i, r, total);
             for (int x = -r; x <= r && running; x += 16)
 			{
                 for (int z = -r; z <= r && running; z += 16)
@@ -629,6 +630,8 @@ bool MinecraftServer::loadLevel(LevelStorageSource *storageSource, const wstring
 //                        lastTime = now;
                     }
 					static int count = 0;
+					if (count % 50 == 0)
+						app.DebugPrintf("Chunk gen: level %d, chunk %d/%d (x=%d z=%d)", i, count, total, x, z);
 					PIXBeginNamedEvent(0,"Creating %d ", (count++)%8);
                     level->cache->create((spawnPos->x + x) >> 4, (spawnPos->z + z) >> 4, true);	// 4J - added parameter to disable postprocessing here
 					PIXEndNamedEvent();
@@ -664,6 +667,7 @@ bool MinecraftServer::loadLevel(LevelStorageSource *storageSource, const wstring
     }
 //	printf("Main thread complete at %dms\n",System::currentTimeMillis() - startTime);
 
+	app.DebugPrintf("Chunk generation complete, waiting for post-processing...");
 	// Wait for post processing, then lighting threads, to end (post-processing may make more lighting changes)
 	m_postUpdateTerminate = true;
 
